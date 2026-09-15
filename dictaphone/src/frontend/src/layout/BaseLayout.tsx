@@ -1,0 +1,170 @@
+import {
+  Footer,
+  LaGaufreV2,
+  LanguagePicker,
+  useResponsive,
+} from '@gouvfr-lasuite/ui-kit'
+import { Button } from '@gouvfr-lasuite/cunningham-react'
+import { authUrl } from '@/features/auth/utils/authUrl'
+import { useTranslation } from 'react-i18next'
+import { PropsWithChildren, useCallback, useMemo, useState } from 'react'
+import { LANGUAGES } from '@/layout/HeaderRight'
+import { usePageTitle } from '@/layout/usePageTitle'
+
+export function BaseLayout({
+  children,
+  className,
+  showShowcaseAssistant,
+  pageTitle,
+  heading,
+}: PropsWithChildren & {
+  className?: string
+  showShowcaseAssistant: boolean
+  heading?: string
+  pageTitle: string
+}) {
+  const { t, i18n } = useTranslation(['home', 'layout'])
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    i18n.language
+  )
+  const { isMobile } = useResponsive()
+  usePageTitle(pageTitle)
+
+  const languages = useMemo(() => {
+    return LANGUAGES.map((language) => ({
+      ...language,
+      shortLabel: isMobile ? language.shortLabel : language.label,
+      isChecked:
+        language.value.toLowerCase() === selectedLanguage.toLowerCase(),
+    }))
+  }, [selectedLanguage, isMobile])
+  const onChange = useCallback(
+    (lang: string) => {
+      i18n.changeLanguage(lang)
+      setSelectedLanguage(lang)
+    },
+    [i18n, setSelectedLanguage]
+  )
+
+  return (
+    <div className={`base-layout ${className ?? ''}`}>
+      <div className="base-layout__header">
+        <div className="base-layout__header__left">
+          <a href="/">
+            <img
+              alt={t('layout:images.governmentLogoAlt')}
+              className="base-layout__header__gouv-logo"
+              src="/assets/gouv-logo.svg"
+            />
+            <img
+              className="base-layout__header__app-logo"
+              alt={t('images.appLogoAlt')}
+              src="/assets/logo-single-line.svg"
+            />
+          </a>
+        </div>
+        <div className="base-layout__header__right">
+          <div className="base-layout__header__right__shortcuts">
+            <LaGaufreV2
+              apiUrl={'https://lasuite.numerique.gouv.fr/api/services'}
+              // The show more btn is buggy
+              showMoreLimit={9}
+            />
+            <LanguagePicker
+              size="medium"
+              languages={languages}
+              onChange={onChange}
+            />
+          </div>
+          <div className="base-layout__header__right__separator" />
+          <Button
+            onClick={() => window.location.replace(authUrl())}
+            size="small"
+          >
+            {t('login')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="base-layout__inner-container">
+        {heading && <h1 className="base-layout__title">{heading}</h1>}
+        <section className="base-layout__content">{children}</section>
+        {showShowcaseAssistant && (
+          <div className="base-layout__showcase-assistant">
+            <img
+              alt={t('layout:images.assistantLogoAlt')}
+              src="/assets/logo-lasuite-assistant.svg"
+            />
+            <p>{t('introLasuiteAssistant')}</p>
+            <div className="base-layout__showcase-assistant__buttons">
+              <Button
+                variant="bordered"
+                href="https://assistant.numerique.gouv.fr/"
+                target="_blank"
+                aria-label={t('discoverAssistantAriaLabel')}
+              >
+                {t('discoverAssistant')}
+              </Button>
+              <Button
+                href="https://lasuite.numerique.gouv.fr/"
+                target="_blank"
+                aria-label={t('discoverLaSuiteAriaLabel')}
+              >
+                {t('discoverLaSuite')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+      <Footer
+        externalLinks={[
+          {
+            href: 'https://legifrance.gouv.fr/',
+            label: 'legifrance.gouv.fr',
+          },
+          {
+            href: 'https://info.gouv.fr/',
+            label: 'info.gouv.fr',
+          },
+          {
+            href: 'https://service-public.fr/',
+            label: 'service-public.fr',
+          },
+          {
+            href: 'https://data.gouv.fr/',
+            label: 'data.gouv.fr',
+          },
+        ]}
+        legalLinks={[
+          {
+            href: t('layout:legal.legalTermsUrl'),
+            label: t('layout:legal.legalTerms'),
+          },
+          {
+            href: t('layout:legal.termsOfServiceUrl'),
+            label: t('layout:legal.termsOfService'),
+          },
+          {
+            href: t('layout:legal.personalDataUrl'),
+            label: t('layout:legal.personalData'),
+          },
+          {
+            href: t('layout:legal.serviceProvisionAgreementUrl'),
+            label: t('layout:legal.serviceProvisionAgreement'),
+          },
+          {
+            href: t('layout:legal.accessibilityUrl'),
+            label: t('layout:legal.accessibility'),
+          },
+        ]}
+        license={{
+          label: t('license'),
+          link: {
+            href: 'https://github.com/etalab/licence-ouverte/blob/master/LO.md',
+            label: 'licence etalab-2.0',
+          },
+        }}
+      />
+    </div>
+  )
+}

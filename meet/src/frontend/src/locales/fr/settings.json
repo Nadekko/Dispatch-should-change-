@@ -1,0 +1,190 @@
+{
+  "account": {
+    "currentlyLoggedAs": "Vous êtes actuellement connecté en tant que <0>{{user}}</0>",
+    "heading": "Compte",
+    "youAreNotLoggedIn": "Vous n'êtes pas connecté.",
+    "nameLabel": "Votre Nom",
+    "authentication": "Authentification",
+    "nameError": "Votre Nom ne peut pas être vide"
+  },
+  "preferences": {
+    "title": "Préférences",
+    "idleDisconnectModal": {
+      "label": "Quitter les appels sans autre participant",
+      "description": "Vous fait quitter un appel au bout de quelques minutes si aucun autre participant ne vous rejoint"
+    },
+    "autoMuteLargeRoom": {
+      "label": "Couper automatiquement mon micro",
+      "description": "Coupe automatiquement votre micro lorsque vous rejoignez une réunion de grande taille."
+    }
+  },
+  "audio": {
+    "microphone": {
+      "heading": "Micro",
+      "label": "Sélectionner votre entrée audio",
+      "disabled": "Micro désactivé"
+    },
+    "noiseReduction": {
+      "label": "Réduction de bruit",
+      "heading": "Réduction de bruit",
+      "ariaLabel": {
+        "enable": "Activer la réduction du bruit",
+        "disable": "Désactiver la réduction du bruit"
+      }
+    },
+    "speakers": {
+      "heading": "Haut-parleurs",
+      "label": "Sélectionner votre sortie audio",
+      "test": "Tester",
+      "ongoingTest": "Test du son…",
+      "safariWarning": "La sélection du haut-parleur n'est pas encore disponible sur Safari en raison de limitations du navigateur."
+    },
+    "permissionsRequired": "Autorisations nécessaires"
+  },
+  "video": {
+    "camera": {
+      "heading": "Caméra",
+      "label": "Sélectionner votre entrée vidéo",
+      "disabled": "Caméra désactivée",
+      "previewAriaLabel": {
+        "enabled": "Aperçu vidéo activé",
+        "disabled": "Aperçu vidéo désactivé"
+      }
+    },
+    "resolution": {
+      "heading": "Résolution",
+      "publish": {
+        "label": "Sélectionner votre résolution d'envoi (max.)",
+        "items": {
+          "veryHigh": "Très haute définition",
+          "high": "Haute définition",
+          "medium": "Définition standard",
+          "low": "Basse définition"
+        }
+      },
+      "subscribe": {
+        "label": "Sélectionner votre résolution de réception (max.)",
+        "items": {
+          "high": "Haute définition (automatique)",
+          "medium": "Définition standard",
+          "low": "Basse définition"
+        }
+      }
+    },
+    "permissionsRequired": "Autorisations nécessaires"
+  },
+  "transcription": {
+    "heading": "Transcription",
+    "language": {
+      "label": "Langue de la réunion",
+      "options": {
+        "french": "Français (fr)",
+        "english": "Anglais (en)",
+        "dutch": "Hollandais (nl)",
+        "german": "Allemand (de)",
+        "auto": "Automatique"
+      }
+    }
+  },
+  "notifications": {
+    "heading": "Notifications sonores",
+    "label": "la notification sonore pour",
+    "actions": {
+      "disable": "Désactiver",
+      "enable": "Activer"
+    },
+    "items": {
+      "participantJoined": {
+        "label": "Un nouveau participant"
+      },
+      "handRaised": {
+        "label": "Une main levée"
+      },
+      "messageReceived": {
+        "label": "Un message reçu"
+      }
+    }
+  },
+  "shortcuts": {
+    "listLabel": "Liste des raccourcis clavier",
+    "columnAction": "Action",
+    "columnShortcut": "Raccourci"
+  },
+  "dialog": {
+    "heading": "Paramètres"
+  },
+  "language": {
+    "heading": "Langue",
+    "label": "Langue de l'application"
+  },
+  "settingsButtonLabel": "Paramètres",
+  "accessibility": {
+    "announceReactions": {
+      "label": "Vocaliser les réactions"
+    },
+    "font": {
+      "label": "Police d'affichage",
+      "description": "Personnalisez la police utilisée dans l'interface pour améliorer votre confort de lecture.",
+      "options": {
+        "default": "Par défaut",
+        "lexend": "Lexend (lisibilité améliorée)",
+        "atkinson-hyperlegible": "Atkinson Hyperlegible (basse vision)",
+        "opendyslexic": "OpenDyslexic (dyslexie)"
+      }
+    },
+    "captions": {
+      "heading": "Sous-titres",
+      "textSize": {
+        "label": "Taille du texte des sous-titres",
+        "options": {
+          "small": "Petit",
+          "medium": "Moyen",
+          "large": "Grand"
+        }
+      },
+      "fontColor": {
+        "label": "Couleur du texte",
+        "options": {
+          "default": "Par défaut",
+          "white": "Blanc",
+          "black": "Noir",
+          "blue": "Bleu",
+          "green": "Vert",
+          "red": "Rouge",
+          "yellow": "Jaune",
+          "cyan": "Cyan",
+          "magenta": "Magenta"
+        }
+      },
+      "backgroundColor": {
+        "label": "Couleur de fond",
+        "options": {
+          "default": "Par défaut",
+          "white": "Blanc",
+          "black": "Noir",
+          "blue": "Bleu",
+          "green": "Vert",
+          "red": "Rouge",
+          "yellow": "Jaune",
+          "cyan": "Cyan",
+          "magenta": "Magenta"
+        }
+      }
+    }
+  },
+  "tabs": {
+    "account": "Profil",
+    "audio": "Audio",
+    "video": "Vidéo",
+    "general": "Général",
+    "notifications": "Notifications",
+    "accessibility": "Accessibilité",
+    "transcription": "Transcription",
+    "shortcuts": "Raccourcis",
+    "rooms": "Réunions"
+  },
+  "roomDefaults": {
+    "heading": "Paramètres par défaut des réunions",
+    "description": "Choisissez les paramètres appliqués par défaut aux nouvelles réunions que vous créez. Vous pourrez toujours les modifier pour chaque réunion depuis les paramètres d’administration."
+  }
+}

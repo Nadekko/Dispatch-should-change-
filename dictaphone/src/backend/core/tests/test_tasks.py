@@ -1,0 +1,844 @@
+"""Tests for background tasks."""
+
+from io import BytesIO
+from unittest.mock import Mock, patch
+from uuid import uuid4
+
+from django.core.files.storage import default_storage
+
+import pytest
+import requests
+from celery.exceptions import Retry
+
+from core import factories
+from core.models import (
+    AiFileJob,
+    AiJobStatusChoices,
+    AiJobTypeChoices,
+    File,
+    FileAudioExtractionStateChoices,
+    FileLifecycleStateChoices,
+)
+from core.tasks.file import (
+    DocumentCreationAlreadyInProgress,
+    call_transcribe_service,
+    create_document_in_docs,
+    handle_transcript_received,
+    process_file_deletion,
+    process_original_file_data_deletion,
+    store_summary,
+)
+from core.tasks.retry import build_retry_task_options
+
+pytestmark = pytest.mark.django_db
+
+
+def test_task_process_file_deletion_file_does_not_exist():
+    """No error should be raised when trying to delete a missing file."""
+    process_file_deletion(uuid4())
+
+
+def test_task_process_file_deletion_file_not_hard_deleted():
+    """A file that is not hard deleted must not be deleted."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+
+    process_file_deletion(file.id)
+
+    assert File.objects.filter(id=file.id).exists()
+    assert default_storage.exists(file.file_key)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_task_process_file_deletion_success():
+    """A hard-deleted file should be removed from storage and database."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
+    file.soft_delete()
+    file.hard_delete()
+
+    ai_transcript_job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.TRANSCRIPT,
+    )
+    ai_summary_job = factories.AiFileJobFactory(
+        file=file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    )
+    default_storage.save(ai_transcript_job.key, BytesIO(b'{"segments": []}'))
+    default_storage.save(ai_summary_job.key, BytesIO(b"summary"))
+
+    assert default_storage.exists(file.file_key)
+    assert default_storage.exists(ai_transcript_job.key)
+    assert default_storage.exists(ai_summary_job.key)
+    process_file_deletion(file.id)
+
+    assert not File.objects.filter(id=file.id).exists()
+    assert not AiFileJob.objects.filter(id=ai_transcript_job.id).exists()
+    assert not AiFileJob.objects.filter(id=ai_summary_job.id).exists()
+    assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
+    assert not default_storage.exists(ai_transcript_job.key)
+    assert not default_storage.exists(ai_summary_job.key)
+
+
+def test_task_process_original_file_data_deletion_success():
+    """Original source data deletion should keep file row and set lifecycle state."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+    default_storage.save(file.audio_file_key, BytesIO(b"validated audio"))
+
+    assert default_storage.exists(file.file_key)
+    assert default_storage.exists(file.audio_file_key)
+    process_original_file_data_deletion(file.id)
+
+    file.refresh_from_db()
+    assert file.lifecycle_state == FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    assert not default_storage.exists(file.file_key)
+    assert not default_storage.exists(file.audio_file_key)
+
+
+def test_task_process_original_file_data_deletion_missing_file():
+    """Original data deletion task should ignore missing files."""
+    process_original_file_data_deletion(uuid4())
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_file_does_not_exist(mock_post):
+    """External API should not be called when the file does not exist."""
+    call_transcribe_service(uuid4())
+
+    assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_rejects_non_accessible_file(mock_post):
+    """No AI job should be created when file is not active anymore."""
+    file = factories.FileFactory(upload_bytes=b"hello")
+    file.lifecycle_state = FileLifecycleStateChoices.ORIGINAL_DATA_DELETED
+    file.save(update_fields=["lifecycle_state"])
+
+    with pytest.raises(
+        ValueError, match="Cannot transcribe when file is not in active state"
+    ):
+        call_transcribe_service(file.id)
+
+    mock_post.assert_not_called()
+    assert not AiFileJob.objects.filter(file=file).exists()
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_success(mock_post, settings):
+    """Transcribe task should call AI service and create a pending transcript job."""
+    settings.AI_SERVICE_URL = "http://ai-service/"
+    settings.AI_SERVICE_API_KEY = "test-ai-key"
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=max_duration_seconds - 1,
+        language="en",
+    )
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"job_id": "remote-transcript-job-id"}
+    mock_post.return_value = response
+
+    call_transcribe_service(file.id)
+
+    assert mock_post.call_count == 1
+    _, kwargs = mock_post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer test-ai-key"}
+    assert kwargs["timeout"] == 10
+    assert kwargs["json"]["user_sub"] == file.creator.sub
+    assert kwargs["json"]["language"] == "en"
+    assert kwargs["json"]["cloud_storage_url"]
+
+    ai_job = AiFileJob.objects.get(remote_job_id="remote-transcript-job-id")
+    assert ai_job.file == file
+    assert ai_job.type == AiJobTypeChoices.TRANSCRIPT
+    assert ai_job.status == AiJobStatusChoices.PENDING
+    assert ai_job.language == "en"
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_with_custom_language(mock_post, settings):
+    """Transcribe task should pass explicit language to AI service."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = False
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+    )
+
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"job_id": "remote-transcript-job-id-en"}
+    mock_post.return_value = response
+
+    call_transcribe_service(file.id, language="en")
+
+    _, kwargs = mock_post.call_args
+    assert kwargs["json"]["language"] == "en"
+
+    ai_job = AiFileJob.objects.get(remote_job_id="remote-transcript-job-id-en")
+    assert ai_job.language == "en"
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_http_error(mock_post, settings):
+    """Errors from AI transcribe API should bubble up and mark job as failed."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=max_duration_seconds - 1,
+    )
+
+    response = Mock()
+    response.raise_for_status.side_effect = RuntimeError("transcribe failure")
+    mock_post.return_value = response
+
+    with pytest.raises(RuntimeError, match="transcribe failure"):
+        call_transcribe_service(file.id)
+
+    ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
+    assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.remote_job_id is None
+
+
+@patch("core.tasks.file.session.post")
+@pytest.mark.parametrize(
+    "duration_seconds",
+    [
+        60 * 60 * 3,
+    ],
+)
+def test_task_call_transcribe_service_fails_on_invalid_duration(
+    mock_post, settings, duration_seconds
+):
+    """Files with missing or too long duration should fail before external call."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=duration_seconds,
+    )
+
+    call_transcribe_service(file.id)
+
+    mock_post.assert_not_called()
+    ai_job = AiFileJob.objects.get(file=file, type=AiJobTypeChoices.TRANSCRIPT)
+    assert ai_job.status == AiJobStatusChoices.FAILED
+    assert ai_job.remote_job_id is None
+
+
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_transcript_and_call_summary_job_does_not_exist(mock_get, mock_post):
+    """No external calls should be made for unknown remote job id."""
+    handle_transcript_received(
+        remote_job_id="missing-remote-job",
+        url="http://example.com/transcript.json",
+    )
+
+    assert mock_get.call_count == 0
+    assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_transcript_and_call_summary_ignores_non_transcript_job(
+    mock_get, mock_post
+):
+    """No external calls should be made if remote id belongs to a non-transcript job."""
+    ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
+
+    handle_transcript_received(
+        remote_job_id=ai_summary_job.remote_job_id,
+        url="http://example.com/transcript.json",
+    )
+
+    mock_get.assert_not_called()
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.send_transcription_ready_email.apply_async")
+@patch("core.tasks.file.create_document_in_docs.apply_async")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_transcript_and_call_summary_success(
+    mock_get,
+    mock_post,
+    mock_create_document_in_docs,
+    mock_send_email,
+    settings,
+):
+    """Transcript should be stored, transcript job marked success and summary job created."""
+    settings.AI_SERVICE_URL = "http://ai-service/"
+    settings.AI_SERVICE_API_KEY = "test-ai-key"
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {"default": True, "send_notification_email": True}
+    }
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    transcript_payload = {
+        "segments": [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "Bonjour",
+                "words": [
+                    {
+                        "word": "Bonjour",
+                        "start": 0.0,
+                        "end": 1.0,
+                        "score": 0.99,
+                        "speaker": "SPEAKER_00",
+                    }
+                ],
+                "speaker": "SPEAKER_00",
+            }
+        ],
+        "word_segments": [
+            {
+                "word": "Bonjour",
+                "start": 0.0,
+                "end": 1.0,
+                "score": 0.99,
+                "speaker": "SPEAKER_00",
+            }
+        ],
+    }
+    transcript_content = b"""{
+        "segments": [{
+            "start": 0.0,
+            "end": 1.0,
+            "text": "Bonjour",
+            "words": [{
+                "word": "Bonjour",
+                "start": 0.0,
+                "end": 1.0,
+                "score": 0.99,
+                "speaker": "SPEAKER_00"
+            }],
+            "speaker": "SPEAKER_00"
+        }],
+        "word_segments": [{
+            "word": "Bonjour",
+            "start": 0.0,
+            "end": 1.0,
+            "score": 0.99,
+            "speaker": "SPEAKER_00"
+        }]
+    }"""
+
+    get_response = Mock()
+    get_response.raise_for_status.return_value = None
+    get_response.json.return_value = transcript_payload
+    get_response.content = transcript_content
+    mock_get.return_value = get_response
+
+    post_response = Mock()
+    post_response.raise_for_status.return_value = None
+    post_response.json.return_value = {"job_id": "remote-summary-job-id"}
+    mock_post.return_value = post_response
+
+    handle_transcript_received(
+        remote_job_id=ai_transcript_job.remote_job_id,
+        url="http://example.com/transcript.json",
+    )
+
+    mock_get.assert_called_once_with(
+        "http://example.com/transcript.json",
+        timeout=(10, 20),
+    )
+    mock_post.assert_called_once()
+    _, kwargs = mock_post.call_args
+    assert kwargs["headers"] == {"Authorization": "Bearer test-ai-key"}
+    assert kwargs["timeout"] == 10
+    assert kwargs["json"] == {
+        "user_sub": ai_transcript_job.file.creator.sub,
+        "user_email": ai_transcript_job.file.creator.email,
+        "language": "fr",
+        "content": "\n\n**SPEAKER_00**: Bonjour",
+    }
+    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+    mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
+
+    s3_client = default_storage.connection.meta.client
+    stored_obj = s3_client.get_object(
+        Bucket=default_storage.bucket_name,
+        Key=ai_transcript_job.key,
+    )
+    assert stored_obj["Body"].read() == transcript_content
+
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
+    assert AiFileJob.objects.filter(
+        remote_job_id="remote-summary-job-id",
+        file=ai_transcript_job.file,
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    ).exists()
+    assert (
+        AiFileJob.objects.get(remote_job_id="remote-summary-job-id").language
+        == ai_transcript_job.language
+    )
+
+
+@pytest.mark.parametrize(
+    ("auto_create_in_docs", "send_notification_email"),
+    [
+        (False, False),
+        (False, True),
+        (True, False),
+        (True, True),
+    ],
+)
+@patch("core.tasks.file.send_transcription_ready_email.apply_async")
+@patch("core.tasks.file.create_document_in_docs.apply_async")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_empty_transcript_without_calling_summary(  # noqa: PLR0913 pylint: disable=too-many-arguments,too-many-positional-arguments
+    mock_get,
+    mock_post,
+    mock_create_document_in_docs,
+    mock_send_email,
+    settings,
+    auto_create_in_docs,
+    send_notification_email,
+):
+    """A no-audio transcript should honor the Docs and email policy options."""
+    settings.DATA_POLICY_CONFIGURATIONS = {
+        "default": {
+            "default": True,
+            "auto_create_in_docs": auto_create_in_docs,
+            "send_notification_email": send_notification_email,
+        }
+    }
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    handle_transcript_received(remote_job_id=ai_transcript_job.remote_job_id, url=None)
+
+    mock_get.assert_not_called()
+    mock_post.assert_not_called()
+    if auto_create_in_docs:
+        mock_create_document_in_docs.assert_called_once_with(
+            args=[ai_transcript_job.id]
+        )
+    else:
+        mock_create_document_in_docs.assert_not_called()
+    if send_notification_email:
+        mock_send_email.assert_called_once_with(args=[ai_transcript_job.id])
+    else:
+        mock_send_email.assert_not_called()
+
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
+    assert not AiFileJob.objects.filter(
+        file=ai_transcript_job.file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    ).exists()
+
+    stored_obj = default_storage.connection.meta.client.get_object(
+        Bucket=default_storage.bucket_name,
+        Key=ai_transcript_job.key,
+    )
+    assert stored_obj["Body"].read() == b'{"segments": [], "word_segments": []}'
+
+
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_transcript_and_call_summary_get_error(mock_get, mock_post):
+    """If transcript download fails, nothing should be persisted."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    get_response = Mock()
+    get_response.raise_for_status.side_effect = RuntimeError("download failure")
+    mock_get.return_value = get_response
+
+    with pytest.raises(RuntimeError, match="download failure"):
+        handle_transcript_received(
+            remote_job_id=ai_transcript_job.remote_job_id,
+            url="http://example.com/transcript.json",
+        )
+
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.status == AiJobStatusChoices.PENDING
+    assert not AiFileJob.objects.filter(
+        file=ai_transcript_job.file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    ).exists()
+    assert not default_storage.exists(f"transcripts/{ai_transcript_job.id!s}.json")
+    assert mock_post.call_count == 0
+
+
+@patch("core.tasks.file.session.get")
+def test_task_store_summary_job_does_not_exist(mock_get):
+    """No external calls should be made for unknown summary remote job id."""
+    store_summary(
+        remote_job_id="missing-summary-job",
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_not_called()
+
+
+@patch("core.tasks.file.session.get")
+def test_task_store_summary_ignores_non_summary_job(mock_get):
+    """No external calls should be made if remote id belongs to a non-summary job."""
+    ai_transcript_job = factories.AiFileJobFactory(type=AiJobTypeChoices.TRANSCRIPT)
+
+    store_summary(
+        remote_job_id=ai_transcript_job.remote_job_id,
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_not_called()
+
+
+@patch("core.tasks.file.session.get")
+def test_task_store_summary_success(mock_get):
+    """Summary should be stored and summary job marked success."""
+    ai_summary_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    summary_content = b"Summary content"
+    get_response = Mock()
+    get_response.raise_for_status.return_value = None
+    get_response.content = summary_content
+    mock_get.return_value = get_response
+
+    store_summary(
+        remote_job_id=ai_summary_job.remote_job_id,
+        url="http://example.com/summary.txt",
+    )
+
+    mock_get.assert_called_once_with(
+        "http://example.com/summary.txt",
+        timeout=(10, 20),
+    )
+
+    s3_client = default_storage.connection.meta.client
+    stored_obj = s3_client.get_object(
+        Bucket=default_storage.bucket_name,
+        Key=ai_summary_job.key,
+    )
+    assert stored_obj["Body"].read() == summary_content
+
+    ai_summary_job.refresh_from_db()
+    assert ai_summary_job.status == AiJobStatusChoices.SUCCESS
+
+
+@patch("core.tasks.file.session.get")
+def test_task_store_summary_get_error(mock_get):
+    """If summary download fails, nothing should be persisted."""
+    ai_summary_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.SUMMARIZE,
+        status=AiJobStatusChoices.PENDING,
+    )
+    get_response = Mock()
+    get_response.raise_for_status.side_effect = RuntimeError("download failure")
+    mock_get.return_value = get_response
+
+    with pytest.raises(RuntimeError, match="download failure"):
+        store_summary(
+            remote_job_id=ai_summary_job.remote_job_id,
+            url="http://example.com/summary.txt",
+        )
+
+    ai_summary_job.refresh_from_db()
+    assert ai_summary_job.status == AiJobStatusChoices.PENDING
+    assert not default_storage.exists(f"summaries/{ai_summary_job.id!s}.txt")
+
+
+@patch("core.tasks.file.create_document_in_docs.apply_async")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.session.get")
+def test_task_store_transcript_and_call_summary_post_error(
+    mock_get, mock_post, mock_create_document_in_docs
+):
+    """
+    If summary API fails after transcript storage, transcript remains saved and
+    transcript job stays SUCCESS and summary job is created as failed.
+    """
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        status=AiJobStatusChoices.PENDING,
+    )
+
+    get_response = Mock()
+    get_response.raise_for_status.return_value = None
+    get_response.content = b"""{
+        "segments": [{
+            "start": 0.0,
+            "end": 1.0,
+            "text": "Bonjour",
+            "words": [],
+            "speaker": "SPEAKER_00"
+        }],
+        "word_segments": []
+    }"""
+    get_response.json.return_value = {
+        "segments": [
+            {
+                "start": 0.0,
+                "end": 1.0,
+                "text": "Bonjour",
+                "words": [],
+                "speaker": "SPEAKER_00",
+            }
+        ],
+        "word_segments": [],
+    }
+    mock_get.return_value = get_response
+
+    post_response = Mock()
+    post_response.raise_for_status.side_effect = RuntimeError("summary failure")
+    mock_post.return_value = post_response
+
+    with pytest.raises(RuntimeError, match="summary failure"):
+        handle_transcript_received(
+            remote_job_id=ai_transcript_job.remote_job_id,
+            url="http://example.com/transcript.json",
+        )
+
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.status == AiJobStatusChoices.SUCCESS
+    assert default_storage.exists(f"transcripts/{ai_transcript_job.id!s}.json")
+    ai_summary_job = AiFileJob.objects.get(
+        file=ai_transcript_job.file,
+        type=AiJobTypeChoices.SUMMARIZE,
+    )
+    assert ai_summary_job.status == AiJobStatusChoices.FAILED
+    assert ai_summary_job.remote_job_id is None
+    mock_create_document_in_docs.assert_called_once_with(args=[ai_transcript_job.id])
+
+
+@patch("core.tasks.file.session.post")
+def test_task_create_document_in_docs_ignores_non_transcript_job(mock_post):
+    """Non-transcript jobs should not trigger Docs document creation."""
+    ai_summary_job = factories.AiFileJobFactory(type=AiJobTypeChoices.SUMMARIZE)
+
+    create_document_in_docs(ai_summary_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.session.post")
+def test_task_create_document_in_docs_ignores_existing_doc(mock_post):
+    """Jobs with existing docs id should not call Docs API again."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id="existing-doc-id",
+    )
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.session.post")
+def test_task_create_document_in_docs_rejects_existing_creation_claim(mock_post):
+    """A claimed job must not call Docs a second time."""
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+        docs_creation_in_progress=True,
+    )
+
+    with pytest.raises(DocumentCreationAlreadyInProgress):
+        create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_not_called()
+
+
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_success(mock_to_markdown, mock_post, settings):
+    """Transcript jobs should create Docs documents and store docs id."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+        file__title="Meeting notes",
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"id": "new-doc-id"}
+    mock_post.return_value = response
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_post.assert_called_once_with(
+        "https://docs.example.com/api/v1.0/documents/create-for-owner/",
+        json={
+            "title": "Meeting notes",
+            "content": "# Transcript",
+            "email": ai_transcript_job.file.creator.email,
+            "sub": ai_transcript_job.file.creator.sub,
+            "send_notification_email": True,
+        },
+        headers={"Authorization": "Bearer docs-api-key"},
+        timeout=(20, 3 * 60),
+    )
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id == "new-doc-id"
+
+
+@patch("core.tasks.file.logger.error")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_read_timeout_is_ignored(
+    mock_to_markdown, mock_post, mock_logger_error, settings
+):
+    """Read timeout should be logged and ignored to avoid duplicate docs."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    mock_post.side_effect = requests.ReadTimeout
+
+    create_document_in_docs(ai_transcript_job.id)
+
+    mock_logger_error.assert_called_once_with(
+        "Request to Docs timed out for file %s, "
+        "do not considering this a failure to avoid creating multiple files on docs",
+        ai_transcript_job.file.id,
+    )
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id is None
+
+
+@patch("core.tasks.file.logger.error")
+@patch("core.tasks.file.session.post")
+@patch("core.tasks.file.AiFileJob.to_markdown")
+def test_task_create_document_in_docs_logs_and_raises_on_http_error(
+    mock_to_markdown, mock_post, mock_logger_error, settings
+):
+    """Non-201 Docs responses should be logged and raised."""
+    settings.DOCS_BASE_URL = "https://docs.example.com"
+    settings.DOCS_SERVER_TO_SERVER_API_KEY = "docs-api-key"
+    ai_transcript_job = factories.AiFileJobFactory(
+        type=AiJobTypeChoices.TRANSCRIPT,
+        docs_app_id=None,
+    )
+
+    mock_to_markdown.return_value = "# Transcript"
+    response = Mock()
+    response.status_code = 500
+    response.text = "docs failure body"
+    response.raise_for_status.side_effect = RuntimeError("docs failure")
+    mock_post.return_value = response
+
+    with pytest.raises(RuntimeError, match="docs failure"):
+        create_document_in_docs(ai_transcript_job.id)
+
+    mock_logger_error.assert_called_once_with(
+        "Failed to create document in Docs for file %s: %s",
+        ai_transcript_job.file.id,
+        "docs failure body",
+    )
+    response.raise_for_status.assert_called_once_with()
+    ai_transcript_job.refresh_from_db()
+    assert ai_transcript_job.docs_app_id is None
+
+
+def test_build_retry_task_options_uses_settings(settings):
+    """Retry options helper should use values configured in Django settings."""
+    settings.CELERY_TASK_RETRY_BACKOFF_SECONDS = 11
+    settings.CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS = 77
+    settings.CELERY_TASK_RETRY_MAX_RETRIES = 4
+    settings.CELERY_TASK_RETRY_JITTER = True
+
+    options = build_retry_task_options(autoretry_for=(requests.RequestException,))
+
+    assert options["autoretry_for"] == (requests.RequestException,)
+    assert options["retry_backoff"] == 11
+    assert options["retry_backoff_max"] == 77
+    assert options["retry_jitter"] is True
+    assert options["retry_kwargs"] == {"max_retries": 4}
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        call_transcribe_service,
+        handle_transcript_received,
+        store_summary,
+        create_document_in_docs,
+    ],
+)
+def test_network_tasks_share_retry_configuration(task, settings):
+    """Network tasks should all use the shared retry settings."""
+    assert task.autoretry_for == (requests.RequestException,)
+    assert task.retry_backoff == settings.CELERY_TASK_RETRY_BACKOFF_SECONDS
+    assert task.retry_backoff_max == settings.CELERY_TASK_RETRY_BACKOFF_MAX_SECONDS
+    assert task.retry_jitter == settings.CELERY_TASK_RETRY_JITTER
+    assert task.retry_kwargs["max_retries"] == settings.CELERY_TASK_RETRY_MAX_RETRIES
+
+
+def test_network_tasks_do_not_share_mutable_retry_state():
+    """A retry by one task should not change another task's retry kwargs."""
+    tasks = (
+        call_transcribe_service,
+        handle_transcript_received,
+        store_summary,
+        create_document_in_docs,
+    )
+
+    assert len({id(task.retry_kwargs) for task in tasks}) == len(tasks)
+
+
+@patch("core.tasks.file.session.post")
+def test_task_call_transcribe_service_retries_on_request_error(mock_post, settings):
+    """Transcribe task should trigger Celery retry for request exceptions."""
+    settings.FILE_UPLOAD_APPLY_RESTRICTIONS = True
+    max_duration_seconds = settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+        "max_duration_seconds"
+    ]
+    file = factories.FileFactory(
+        upload_bytes=b"hello",
+        audio_extraction_state=FileAudioExtractionStateChoices.EXTRACTION_DONE,
+        duration_seconds=max_duration_seconds - 1,
+    )
+
+    response = Mock()
+    response.raise_for_status.side_effect = requests.HTTPError("transient failure")
+    mock_post.return_value = response
+
+    with patch.object(
+        call_transcribe_service,
+        "retry",
+        side_effect=Retry(),
+    ) as mock_retry:
+        with pytest.raises(Retry):
+            call_transcribe_service(file.id)
+
+    _, kwargs = mock_retry.call_args
+    assert isinstance(kwargs["exc"], requests.HTTPError)
+    assert kwargs["max_retries"] == settings.CELERY_TASK_RETRY_MAX_RETRIES

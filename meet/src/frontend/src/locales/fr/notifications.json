@@ -1,0 +1,66 @@
+{
+  "defaultName": "Un contributeur",
+  "joined": {
+    "description": "{{name}} participe à l'appel"
+  },
+  "raised": {
+    "description": "{{name}} a levé la main.",
+    "cta": "Ouvrir la file d'attente"
+  },
+  "muted": "{{name}} a coupé votre micro. Aucun participant ne peut l'entendre.",
+  "openChat": "Ouvrir le chat",
+  "chatMessageReceived": "{{name}} dit : {{message}}",
+  "lowerHand": {
+    "auto": "Il semblerait que vous ayez pris la parole, donc la main va être baissée.",
+    "dismiss": "Laisser la main levée"
+  },
+  "autoMuteLargeRoom": {
+    "auto": "Vous venez de rejoindre une grande réunion. Votre micro a été automatiquement coupé.",
+    "dismiss": "Rétablir le micro"
+  },
+  "reaction": {
+    "description": "{{name}} a reagi avec {{emoji}}"
+  },
+  "permissionsRemoved": {
+    "camera": "L'organisateur a désactivé la vidéo de tous les participants.",
+    "microphone": "L'organisateur a désactivé le micro de tous les participants.",
+    "screen_share": "L'organisateur a désactivé le partage d'écran de tous les participants."
+  },
+  "waitingParticipants": {
+    "one": "Une personne souhaite participer à cet appel.",
+    "several": "Plusieurs personnes souhaitent participer à cet appel.",
+    "open": "Afficher",
+    "accept": "Accepter"
+  },
+  "transcript": {
+    "started": "{{name}} a démarré la transcription de la réunion.",
+    "stopped": "{{name}} a arrêté la transcription de la réunion.",
+    "limitReached": "La transcription a dépassé la durée maximale autorisée, elle va être automatiquement sauvegardée.",
+    "requested": "{{name}} a demandé à démarrer la transcription."
+  },
+  "screenRecording": {
+    "started": "{{name}} a démarré l'enregistrement de la réunion.",
+    "stopped": "{{name}} a arrêté l'enregistrement de la réunion.",
+    "limitReached": "L'enregistrement a dépassé la durée maximale autorisée, il va être automatiquement sauvegardé.",
+    "requested": "{{name}} a demandé à démarrer l'enregistrement."
+  },
+  "recordingSave": {
+    "transcript": {
+      "message": "Nous finalisons votre enregistrement ! Vous recevrez un e-mail à <strong>{{email}}</strong> dès que la transcription sera prête.",
+      "default": "Nous finalisons votre enregistrement ! Vous recevrez un e-mail dès que la transcription sera prête."
+    },
+    "screenRecording": {
+      "message": "Nous finalisons votre enregistrement ! Vous recevrez un e-mail à <strong>{{email}}</strong> dès qu’il sera prêt.",
+      "default": "Nous finalisons votre enregistrement ! Vous recevrez un e-mail dès qu’il sera prêt."
+    }
+  },
+  "roleChanged": {
+    "body": "Votre rôle a changé, vous êtes maitenant {{role}}.",
+    "roles": {
+      "owner": "Organisateur",
+      "administrator": "Co-organisateur",
+      "member": "Membre"
+    }
+  },
+  "openMenu": "Ouvrir le menu"
+}

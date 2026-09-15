@@ -1,0 +1,28 @@
+# services:
+#   app-dev:       { extra_hosts: ["minio:host-gateway"] }
+#   celery-dev:    { extra_hosts: ["minio:host-gateway"] }
+#   celery-audio-dev: { extra_hosts: ["minio:host-gateway"] }
+#   nginx:
+#     volumes: ["./docker/files/etc/nginx/conf.d.local:/etc/nginx/conf.d:ro"]
+
+services:
+  app-dev:
+    extra_hosts:
+      - "minio:host-gateway"
+      - "host.docker.internal:host-gateway"
+
+  celery-dev:
+    extra_hosts:
+      - "minio:host-gateway"
+      - "host.docker.internal:host-gateway"
+
+  celery-audio-dev:
+    extra_hosts:
+      - "minio:host-gateway"
+      - "host.docker.internal:host-gateway"
+
+  nginx:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/files/etc/nginx/conf.d.local:/etc/nginx/conf.d:ro

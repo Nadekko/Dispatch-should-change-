@@ -1,0 +1,365 @@
+"""
+Utils functions used in the core app
+"""
+
+# pylint: disable=R0913, R0917
+
+import logging
+import mimetypes
+import string
+from datetime import datetime, timedelta
+from functools import lru_cache
+from threading import Lock
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from django.conf import settings
+
+import boto3
+import botocore
+import magic
+
+from core.configuration import register_configuration_cache_clearer
+from core.storage import (
+    get_bucket_configuration_for_file,
+    get_storage_bucket_name,
+    get_storage_for_file,
+)
+from core.webhook_models import WhisperXResponse
+
+logger = logging.getLogger(__name__)
+
+_s3_client_cache_lock = Lock()
+
+
+@lru_cache(maxsize=32)
+def _create_cached_s3_client(
+    access_key_id: str,
+    secret_access_key: str,
+    endpoint_url: str,
+    region_name: str | None,
+    signature_version: str,
+):
+    """Create an S3 client for one complete set of connection parameters."""
+    session = boto3.session.Session(
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        region_name=region_name,
+    )
+    return session.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        config=botocore.client.Config(signature_version=signature_version),
+    )
+
+
+def _get_cached_s3_client(
+    access_key_id: str,
+    secret_access_key: str,
+    endpoint_url: str,
+    region_name: str | None,
+    signature_version: str,
+):
+    """Return a cached S3 client, serializing first creation per cache."""
+    with _s3_client_cache_lock:
+        return _create_cached_s3_client(
+            access_key_id,
+            secret_access_key,
+            endpoint_url,
+            region_name,
+            signature_version,
+        )
+
+
+def clear_s3_client_cache() -> None:
+    """Clear clients created for domain-overridden S3 endpoints."""
+    with _s3_client_cache_lock:
+        _create_cached_s3_client.cache_clear()
+
+
+register_configuration_cache_clearer(clear_s3_client_cache)
+
+
+def _get_s3_client(file, storage, *, override_domain: bool):
+    """Return an S3 client using the file's bucket credentials."""
+    configuration = get_bucket_configuration_for_file(file)
+    if configuration.domain_replace and override_domain:
+        return _get_cached_s3_client(
+            configuration.access_key_id.get_secret_value(),
+            configuration.secret_access_key.get_secret_value(),
+            configuration.domain_replace,
+            configuration.region_name,
+            configuration.signature_version,
+        )
+    return storage.connection.meta.client
+
+
+def generate_s3_authorization_headers(file, key):
+    """
+    Generate authorization headers for an s3 object.
+    These headers can be used as an alternative to signed urls with many benefits:
+    - the urls of our files never expire and can be stored in our recording' metadata
+    - we don't leak authorized urls that could be shared (file access can only be done
+      with cookies)
+    - access control is truly realtime
+    - the object storage service does not need to be exposed on internet
+    """
+
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+    url = storage.unsigned_connection.meta.client.generate_presigned_url(
+        "get_object",
+        ExpiresIn=0,
+        Params={"Bucket": bucket_name, "Key": key},
+    )
+
+    request = botocore.awsrequest.AWSRequest(method="get", url=url)
+
+    s3_client = storage.connection.meta.client
+    # pylint: disable=protected-access
+    credentials = s3_client._request_signer._credentials  # noqa: SLF001
+    frozen_credentials = credentials.get_frozen_credentials()
+    region = s3_client.meta.region_name
+    auth = botocore.auth.S3SigV4Auth(frozen_credentials, "s3", region)
+    auth.add_auth(request)
+
+    return request
+
+
+ALPHANUMERIC_CHARSET = string.ascii_letters + string.digits
+
+
+def detect_mimetype(file_buffer: bytes, filename: str | None = None) -> str:
+    """
+    Detect MIME type using multiple methods for better accuracy.
+
+    This function combines:
+    1. Magic bytes detection (python-magic) - most reliable for actual file content
+    2. File extension detection (mimetypes) - useful as fallback or for validation
+
+    Args:
+        file_buffer: The file content buffer (first bytes of the file)
+        filename: Optional filename to extract extension from
+
+    Returns:
+        str: The detected MIME type
+
+    Notes:
+        Originally from https://github.com/suitenumerique/drive/blob/564822d31f071c6dfacd112ef4b7146c73077cd9/src/backend/core/api/utils.py#L166 # pylint:disable=line-too-long
+    """
+    # Initialize magic detector
+    mime_detector = magic.Magic(mime=True)
+
+    # Method 1: Detect from file content (magic bytes) - most reliable
+    mimetype_from_content = mime_detector.from_buffer(file_buffer)
+
+    # If we have a filename, try extension-based detection as well
+    mimetype_from_extension = None
+    if filename:
+        # Use mimetypes module to guess from extension
+        # Use guess_file_type (Python 3.13+) instead of deprecated guess_type
+        mimetype_from_extension, _ = mimetypes.guess_file_type(filename, strict=False)
+
+    logger.debug("detect_mimetype: mimetype_from_content: %s", mimetype_from_content)
+    logger.debug(
+        "detect_mimetype: mimetype_from_extension: %s", mimetype_from_extension
+    )
+
+    # Strategy: Prefer content-based detection, but use extension if:
+    # 1. Content detection returns generic types (application/octet-stream, text/plain)
+    # 2. Content detection fails or returns None
+    # 3. Extension detection provides a more specific type
+
+    # Generic/unreliable MIME types that we should try to improve
+    generic_types = {
+        "application/octet-stream",
+        "application/x-ole-storage",  # used by .xls, .doc and .ppt
+        "application/zip",
+        "text/plain",
+    }
+
+    # If content detection gives us a generic type and we have extension info
+    if mimetype_from_content in generic_types and mimetype_from_extension:
+        # Use extension-based detection if it's more specific
+        if mimetype_from_extension not in generic_types:
+            return mimetype_from_extension
+
+    # If content detection failed, returned None or is a generic type, use extension if available
+    if not mimetype_from_content or mimetype_from_content in generic_types:
+        if mimetype_from_extension:
+            return mimetype_from_extension
+
+    # Default to content-based detection (most reliable)
+    return mimetype_from_content or "application/octet-stream"
+
+
+def generate_upload_policy(file):
+    """
+    Generate a S3 upload policy for a given file.
+
+    Notes:
+        Originally taken from https://github.com/suitenumerique/drive/blob/564822d31f071c6dfacd112ef4b7146c73077cd9/src/backend/core/api/utils.py#L102  # pylint: disable=line-too-long
+    """
+
+    key = file.temporary_file_key
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+    configuration = get_bucket_configuration_for_file(file)
+
+    # This setting should be used if the backend application and the frontend application
+    # can't connect to the object storage with the same domain. This is the case in the
+    # docker compose stack used in development. The frontend application will use localhost
+    # to connect to the object storage while the backend application will use the object storage
+    # service name declared in the docker compose stack.
+    # This is needed because the domain name is used to compute the signature. So it can't be
+    # changed dynamically by the frontend application.
+    s3_client = _get_s3_client(file, storage, override_domain=True)
+
+    params = {"Bucket": bucket_name, "Key": key}
+
+    if configuration.upload_acl is not None:
+        params["ACL"] = configuration.upload_acl
+
+    # Generate the policy
+    policy = s3_client.generate_presigned_url(
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=settings.AWS_S3_UPLOAD_POLICY_EXPIRATION,
+    )
+
+    return policy
+
+
+def generate_download_file_url(
+    file, *, expires_in: int, override_domain: bool = True, key=None
+):
+    """
+    Generate a S3 signed download url for a given file.
+    """
+
+    key = key or file.file_key
+    storage = get_storage_for_file(file)
+    bucket_name = get_storage_bucket_name(storage)
+
+    # This settings should be used if the backend application and the frontend application
+    # can't connect to the object storage with the same domain. This is the case in the
+    # docker compose stack used in development. The frontend application will use localhost
+    # to connect to the object storage while the backend application will use the object storage
+    # service name declared in the docker compose stack.
+    # This is needed because the domain name is used to compute the signature. So it can't be
+    # changed dynamically by the frontend application.
+    s3_client = _get_s3_client(
+        file,
+        storage,
+        override_domain=override_domain,
+    )
+
+    return s3_client.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={"Bucket": bucket_name, "Key": key},
+        ExpiresIn=expires_in,
+    )
+
+
+def format_transcript(transcript: WhisperXResponse) -> str:
+    """
+    Format a transcript from whisperX to text.
+    """
+    formatted_output = ""
+    previous_speaker = None
+
+    for segment in transcript.segments:
+        speaker = segment.speaker or "Unknown Speaker"
+        text = segment.text
+        if text:
+            if speaker != previous_speaker:
+                formatted_output += f"\n\n**{speaker}**: {text}"
+                previous_speaker = speaker
+            else:
+                formatted_output += f" {text}"
+
+    return formatted_output
+
+
+def format_duration(duration_seconds: float) -> str:
+    """
+    Format a duration in seconds to a human-readable string.
+    """
+    minutes, seconds = divmod(duration_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours > 0:
+        return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+    return f"{int(minutes):02d}:{int(seconds):02d}"
+
+
+def format_transcript_for_markdown(
+    transcript: WhisperXResponse, language: str = "en"
+) -> str:
+    """
+    Format a transcript from whisperX to markdown.
+    """
+    # A bit hacky i18n handling
+    is_french = language.lower().startswith("fr")
+    speaker_label = "Participant" if is_french else "Speaker"
+    out_str = "# Transcript\n"
+
+    speaker_number_by_id = {}
+
+    last_speaker_number = None
+    for chunk in transcript.segments:
+        speaker = chunk.speaker
+        if speaker not in speaker_number_by_id:
+            speaker_number_by_id[speaker] = len(speaker_number_by_id) + 1
+
+        speaker_number = speaker_number_by_id[speaker]
+        if speaker_number != last_speaker_number:
+            out_str += "\n**"
+            if chunk.start is not None:
+                out_str += format_duration(chunk.start) + " · "
+                out_str += speaker_label + f" {speaker_number}**\n"
+            last_speaker_number = speaker_number
+
+        out_str += f"{chunk.text}\n"
+
+    return out_str
+
+
+def update_url_query_params(url: str, query_parameters: dict[str, list[str]]) -> str:
+    """Update the query parameters of a URL with the provided parameters."""
+
+    parsed_url = urlsplit(url)
+    query = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+    query.update(query_parameters)
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            urlencode(query, doseq=True),
+            parsed_url.fragment,
+        )
+    )
+
+
+def floor_dt_to_bucket(
+    dt: datetime, bucket_seconds: int, *, reference_dt: datetime | None = None
+) -> datetime:
+    """
+    Floor a datetime to a relative bucket start anchored to ``reference_dt``.
+
+    Buckets are anchored on execution time:
+    - first bucket: ``[reference_dt - bucket_seconds, reference_dt]``
+    - second bucket: ``[reference_dt - 2 * bucket_seconds, reference_dt - bucket_seconds)``
+    """
+    if reference_dt is None:
+        reference_dt = datetime.now(tz=dt.tzinfo)
+
+    delta_us = int((dt - reference_dt).total_seconds() * 1_000_000)
+    bucket_us = bucket_seconds * 1_000_000
+
+    if delta_us == 0:
+        bucket_start_offset_us = -bucket_us
+    else:
+        bucket_start_offset_us = (delta_us // bucket_us) * bucket_us
+
+    return reference_dt + timedelta(microseconds=bucket_start_offset_us)

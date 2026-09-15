@@ -1,0 +1,66 @@
+{
+  "defaultName": "Eine Person",
+  "joined": {
+    "description": "{{name}} ist dem Raum beigetreten"
+  },
+  "raised": {
+    "description": "{{name}} hat die Hand gehoben.",
+    "cta": "Warteliste öffnen"
+  },
+  "muted": "{{name}} hat dein Mikrofon stummgeschaltet.",
+  "openChat": "Chat öffnen",
+  "chatMessageReceived": "{{name}} sagt: {{message}}",
+  "lowerHand": {
+    "auto": "Du hast begonnen zu sprechen – deine Hand wird daher automatisch gesenkt.",
+    "dismiss": "Hand oben lassen"
+  },
+  "autoMuteLargeRoom": {
+    "auto": "Sie haben an einer großen Besprechung teilgenommen. Ihr Mikrofon wurde automatisch stummgeschaltet.",
+    "dismiss": "Stummschaltung aufheben"
+  },
+  "reaction": {
+    "description": "{{name}} hat mit {{emoji}} reagiert"
+  },
+  "permissionsRemoved": {
+    "camera": "Die Moderation hat das Video für alle Teilnehmenden deaktiviert.",
+    "microphone": "Die Moderation hat das Mikrofon für alle Teilnehmenden deaktiviert.",
+    "screen_share": "Die Moderation hat die Bildschirmfreigabe für alle Teilnehmenden deaktiviert."
+  },
+  "waitingParticipants": {
+    "one": "Eine Person möchte diesem Meeting beitreten.",
+    "several": "Mehrere Personen möchten diesem Meeting beitreten.",
+    "open": "Öffnen",
+    "accept": "Hereinlassen"
+  },
+  "transcript": {
+    "started": "{{name}} hat die Meeting-Transkription gestartet.",
+    "stopped": "{{name}} hat die Meeting-Transkription gestoppt.",
+    "limitReached": "Die Transkription hat die maximal zulässige Dauer überschritten und wird automatisch gespeichert.",
+    "requested": "{{name}} möchte die Meeting-Transkription starten."
+  },
+  "screenRecording": {
+    "started": "{{name}} hat die Meeting-Aufzeichnung gestartet.",
+    "stopped": "{{name}} hat die Meeting-Aufzeichnung gestoppt.",
+    "limitReached": "Die Aufzeichnung hat die maximal zulässige Dauer überschritten und wird automatisch gespeichert.",
+    "requested": "{{name}} möchte die Meeting-Aufzeichnung starten."
+  },
+  "recordingSave": {
+    "transcript": {
+      "message": "Deine Transkription wird gespeichert! Du erhältst eine E-Mail auf <strong>{{email}}</strong>, sobald die Transkription bereit ist.",
+      "default": "Deine Transkription wird gespeichert! Du erhältst das Transkript per E-Mail, sobald es bereit ist."
+    },
+    "screenRecording": {
+      "message": "Deine Aufzeichnung wird gespeichert! Du erhältst eine E-Mail auf <strong>{{email}}</strong>, sobald sie bereit ist.",
+      "default": "Deine Aufzeichnung wird gespeichert! Du erhältst eine E-Mail, sobald sie bereit ist."
+    }
+  },
+  "roleChanged": {
+    "body": "Deine Rolle wurde geändert. Du bist jetzt {{role}}.",
+    "roles": {
+      "owner": "Host",
+      "administrator": "Co-host",
+      "member": "Mitglied"
+    }
+  },
+  "openMenu": "Menü öffnen"
+}

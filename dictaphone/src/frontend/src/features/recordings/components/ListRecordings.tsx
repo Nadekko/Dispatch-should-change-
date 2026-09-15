@@ -1,0 +1,248 @@
+import { useListMyFilesInfinite } from '@/features/files/api/listFiles.ts'
+import { useTranslation } from 'react-i18next'
+import { HorizontalSeparator, Spinner } from '@gouvfr-lasuite/ui-kit'
+import { Warning } from '@gouvfr-lasuite/ui-kit/icons'
+import { useLocation } from 'wouter'
+import { Button, Tooltip } from '@gouvfr-lasuite/cunningham-react'
+import { intervalToDuration } from 'date-fns'
+import { ApiFileItem } from '@/features/files/api/types.ts'
+import { Fragment, useEffect, useMemo, useRef } from 'react'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
+import { useFormattedProcessingDuration } from '@/features/ai-jobs/utils/useFormattedProcessingDuration'
+
+function RecordingStatus({ recording }: { recording: ApiFileItem }) {
+  const { t } = useTranslation('recordings')
+
+  const { lastAiJobTranscript } = useMemo(
+    () => getMainAiJobs(recording.ai_jobs),
+    [recording.ai_jobs]
+  )
+
+  if (recording.audio_extraction_state === 'audio_extraction_failed') {
+    return (
+      <Tooltip content={t('audioExtraction.failed')}>
+        <span
+          role="img"
+          aria-label={t('audioExtraction.failedAriaLabel')}
+          className="warning"
+        >
+          <Warning />
+        </span>
+      </Tooltip>
+    )
+  }
+
+  if (
+    recording.ai_jobs.length === 0 &&
+    recording.audio_extraction_state !== 'extraction_done'
+  ) {
+    const label =
+      recording.audio_extraction_state === 'pending_audio_extraction'
+        ? t('audioExtraction.pending')
+        : t('audioExtraction.extracting')
+
+    return (
+      <span role="status" aria-label={label}>
+        <Spinner />
+      </span>
+    )
+  }
+
+  if (lastAiJobTranscript?.status === 'success') {
+    return (
+      <div className="recordings-list__document-icon">
+        <img
+          src="/assets/files/icons/doc.svg"
+          alt={t('transcript.statusPreview.success')}
+        />
+      </div>
+    )
+  }
+
+  if (lastAiJobTranscript?.status === 'failed') {
+    return (
+      <Tooltip content={t('transcript.status.failed')}>
+        <span
+          role="img"
+          aria-label={t('transcript.statusPreview.failed')}
+          className="warning"
+        >
+          <Warning />
+        </span>
+      </Tooltip>
+    )
+  }
+  return (
+    <span role="status" aria-label={t('transcript.statusPreview.pending')}>
+      <Spinner />
+    </span>
+  )
+}
+
+function RecordingMetadata({ recording }: { recording: ApiFileItem }) {
+  const { t } = useTranslation(['recordings', 'shared'])
+
+  const durationFormatted = t('shared:utils.duration', {
+    duration: intervalToDuration({
+      start: 0,
+      end: Math.max(recording.duration_seconds || 1, 1) * 1000,
+    }),
+  })
+
+  const createdAtFormatted = t('shared:utils.formatDateTime', {
+    value: recording.created_at,
+  })
+
+  const formattedProcessingDurationRemaining =
+    useFormattedProcessingDuration(recording)
+
+  if (
+    recording.ai_jobs.length === 0 &&
+    recording.audio_extraction_state !== 'extraction_done'
+  ) {
+    if (recording.audio_extraction_state === 'audio_extraction_failed') {
+      return (
+        <div className="recordings-list__item__metadata">
+          <span>{t('audioExtraction.failed')}</span>
+        </div>
+      )
+    }
+
+    return (
+      <div className="recordings-list__item__metadata">
+        <span>{durationFormatted}</span>•
+        <span>
+          {recording.audio_extraction_state === 'pending_audio_extraction'
+            ? t('audioExtraction.pending')
+            : t('audioExtraction.extracting')}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="recordings-list__item__metadata">
+      <span>{durationFormatted}</span>•
+      <span>
+        {formattedProcessingDurationRemaining
+          ? t('recordings:transcript.status.processing', {
+              value: formattedProcessingDurationRemaining,
+            })
+          : createdAtFormatted}
+      </span>
+    </div>
+  )
+}
+
+export function ListRecordings({
+  queryData,
+  isTrashPage = false,
+}: {
+  queryData: ReturnType<typeof useListMyFilesInfinite>
+  isTrashPage?: boolean
+}) {
+  const [, navigate] = useLocation()
+  const { t } = useTranslation(['recordings', 'shared'])
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  const allFiles = useMemo(
+    () => queryData.data?.pages.flatMap((page) => page.results) ?? [],
+    [queryData.data]
+  )
+  const totalFilesCount = queryData.data?.pages[0]?.count ?? 0
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = queryData
+
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage) {
+      return
+    }
+
+    const loadMoreElement = loadMoreRef.current
+    if (!loadMoreElement) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const isVisible = entries.some((entry) => entry.isIntersecting)
+        if (isVisible && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+
+    observer.observe(loadMoreElement)
+
+    return () => observer.disconnect()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
+
+  return (
+    <section aria-label={t('mySavedRecordings')}>
+      {queryData.isPending && !queryData.data && <Spinner />}
+      {queryData.error && (
+        <div className="subtle-info">{t('errorFetching')}</div>
+      )}
+      {queryData.data && totalFilesCount === 0 && (
+        <div className="subtle-info">
+          {t(isTrashPage ? 'noRecordingsTrash' : 'noRecordings')}
+        </div>
+      )}
+      {allFiles.length > 0 && (
+        <div
+          className="recordings-list"
+          role="list"
+          aria-label={t('list.title')}
+        >
+          {allFiles.map((file, idx) => (
+            <Fragment key={file.id}>
+              {idx !== 0 && <HorizontalSeparator withPadding={false} />}
+              <article className="recordings-list__item" role="listitem">
+                <button
+                  className="recordings-list__item__open"
+                  onClick={() => navigate(`/recordings/${file.id}`)}
+                  aria-label={t('list.openRecording', {
+                    title: file.title || file.filename,
+                  })}
+                >
+                  <div className="recordings-list__item__left">
+                    <div className="recordings-list__item__status">
+                      <RecordingStatus recording={file} />
+                    </div>
+                    <div className="recordings-list__item__info">
+                      <span className="recordings-list__item__title">
+                        {file.title || file.filename}
+                      </span>
+                      <RecordingMetadata recording={file} />
+                    </div>
+                  </div>
+                </button>
+                <div
+                  className="recordings-list__item__actions"
+                  aria-label={t('actions.moreOptionsAriaLabel', {
+                    title: file.title || file.filename,
+                  })}
+                >
+                  <FileActionMenu file={file} />
+                </div>
+              </article>
+            </Fragment>
+          ))}
+
+          {hasNextPage && (
+            <div className="recordings-list__footer" ref={loadMoreRef}>
+              <Button
+                variant="secondary"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {t(isFetchingNextPage ? 'list.loadingMore' : 'list.loadMore')}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}

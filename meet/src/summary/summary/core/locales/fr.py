@@ -1,0 +1,33 @@
+"""French locale strings (default)."""
+
+from summary.core.locales.strings import LocaleStrings
+
+STRINGS = LocaleStrings(
+    empty_transcription="""
+**Aucun contenu audio n'a été détecté dans votre transcription.**
+
+*Si vous pensez qu'il s'agit d'une erreur, n'hésitez pas à contacter
+notre support technique : visio@numerique.gouv.fr*
+
+.
+
+.
+
+.
+
+Quelques points que nous vous conseillons de vérifier :
+- Un micro était-il activé ?
+- Étiez-vous suffisamment proche ?
+- Le micro est-il de bonne qualité ?
+- L'enregistrement dure-t-il plus de 30 secondes ?
+
+""",
+    download_header_template=(
+        "\n*[Télécharger votre enregistrement Audio]({download_link})*\n"
+    ),
+    form_footer_template=(
+        "\n\n*[Donnez nous votre avis sur cette transcription]({form_link})*\n"
+    ),
+    hallucination_replacement_text="[Texte impossible à transcrire]",
+    summary_title_template="Résumé de {title}",
+)

@@ -1,0 +1,28 @@
+{
+  "error": {
+    "title": "Aufzeichnung nicht verfügbar",
+    "body": "Die Aufzeichnung ist nicht verfügbar oder wurde möglicherweise gelöscht. Nur der Host der Besprechung hat Zugriff darauf. Wende dich bei Bedarf gerne an die Person."
+  },
+  "expired": {
+    "title": "Aufzeichnung abgelaufen",
+    "body": "Diese Aufzeichnung wurde am {{date}} gelöscht."
+  },
+  "authentication": {
+    "title": "Authentifizierung erforderlich",
+    "body": "Bitte melde dich sich an, um auf diese Aufzeichnung zuzugreifen."
+  },
+  "unsaved": {
+    "title": "Download nicht verfügbar",
+    "body": "Diese Aufzeichnung ist noch nicht zum Herunterladen bereit. Bitte versuche es später erneut."
+  },
+  "success": {
+    "title": "Deine Aufzeichnung ist bereit!",
+    "body": "Aufzeichnung des Meetings {{room}} vom {{created_at}}.",
+    "expiration": "Achtung, diese Aufzeichnung wird nach {{expiration_days}} Tag(en) gelöscht.",
+    "button": "Herunterladen",
+    "warning": {
+      "title": "Linkfreigabe deaktiviert",
+      "body": "Die Freigabe der Aufzeichnung per Link ist noch nicht verfügbar. Nur Hosts können sie herunterladen."
+    }
+  }
+}

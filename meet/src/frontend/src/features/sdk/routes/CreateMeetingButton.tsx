@@ -1,0 +1,242 @@
+import { Button } from '@/primitives/Button'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-aria-components'
+import { useTranslation } from 'react-i18next'
+import { HStack, VStack } from '@/styled-system/jsx'
+import { css } from '@/styled-system/css'
+import { RiCloseLine, RiFileCopyLine, RiSettings3Line } from '@remixicon/react'
+import { Text } from '@/primitives'
+import { Spinner } from '@/primitives/Spinner'
+import { buttonRecipe } from '@/primitives/buttonRecipe'
+import { CameraIcon } from '@/assets/CameraIcon'
+import { getRouteUrl } from '@/navigation/getRouteUrl'
+import { useRoomCreationCallback } from '../api/useRoomCreationCallback'
+import { PopupManager } from '../utils/PopupManager'
+import { CallbackCreationRoomData } from '../utils/types'
+import { useSearchParams } from 'wouter'
+
+const popupManager = new PopupManager()
+
+const CreateMeetingButton = () => {
+  const { t } = useTranslation('sdk', { keyPrefix: 'createMeeting' })
+
+  const [searchParams] = useSearchParams()
+
+  const [callbackId, setCallbackId] = useState<string | undefined>(undefined)
+  const [isPending, setIsPending] = useState(false)
+
+  const initialRoom = useMemo(() => {
+    const roomSlug = searchParams.get('slug')
+    if (!roomSlug) return undefined
+    return {
+      slug: roomSlug.trim(), // Trim whitespace for safety
+    }
+  }, [searchParams])
+
+  const [room, setRoom] = useState<CallbackCreationRoomData | undefined>(
+    initialRoom
+  )
+
+  const [isRoomCreatedInSession, setIsRoomCreatedInSession] = useState(false)
+
+  const showSettingsButton =
+    isRoomCreatedInSession || searchParams.get('settings') === 'true'
+
+  const { data } = useRoomCreationCallback({ callbackId })
+
+  const roomUrl = useMemo(() => {
+    if (room?.slug) return getRouteUrl('room', room.slug)
+  }, [room])
+
+  const backgroundColor = useMemo(() => {
+    const param = searchParams.get('backgroundColor')
+    if (!param) return 'transparent'
+
+    const value = param.trim()
+
+    // Allow raw hex passed without '#' (e.g. ?backgroundColor=ff0000)
+    if (
+      /^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{4}$|^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$/.test(
+        value
+      )
+    ) {
+      return `#${value}`
+    }
+
+    // Already-valid hex (e.g. URL-encoded %23ff0000 → '#ff0000')
+    if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) {
+      return value
+    }
+
+    // Fallback: only allow simple named colors, block anything injectable
+    if (/^[a-zA-Z]+$/.test(value)) {
+      return value
+    }
+
+    return 'transparent'
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!data?.room?.slug) return
+    setRoom(data.room)
+    setIsRoomCreatedInSession(true)
+    setCallbackId(undefined)
+    setIsPending(false)
+    popupManager.sendRoomData({
+      room: {
+        url: getRouteUrl('room', data.room.slug),
+        ...data.room,
+      },
+    })
+  }, [data])
+
+  useEffect(() => {
+    popupManager.setupMessageListener(
+      (id) => setCallbackId(id),
+      (data) => {
+        setRoom(data)
+        setIsRoomCreatedInSession(true)
+        setIsPending(false)
+      }
+    )
+
+    return () => popupManager.cleanup()
+  }, [])
+
+  const resetState = () => {
+    setRoom(undefined)
+    setIsRoomCreatedInSession(false)
+    setCallbackId(undefined)
+    setIsPending(false)
+    popupManager.clearState()
+  }
+
+  if (isPending) {
+    return (
+      <div
+        style={{
+          backgroundColor: backgroundColor,
+          height: '100%',
+        }}
+      >
+        <div
+          className={css({
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          })}
+        >
+          <Spinner size={34} />
+          <Button
+            variant="quaternaryText"
+            square
+            icon={<RiCloseLine />}
+            onPress={resetState}
+            aria-label={t('resetLabel')}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="p-6"
+      style={{
+        display: 'flex',
+        justifyContent: 'start',
+        alignItems: 'start',
+        border: 'none',
+        backgroundColor: backgroundColor,
+        height: '100%',
+      }}
+    >
+      {roomUrl && room?.slug ? (
+        <VStack justify={'start'} alignItems={'start'} gap={0.25}>
+          <HStack>
+            <Link
+              className={buttonRecipe({ size: 'sm' })}
+              href={roomUrl}
+              target="_blank"
+              style={{
+                textWrap: 'nowrap',
+              }}
+            >
+              <CameraIcon />
+              {t('joinButton')}
+            </Link>
+            <HStack gap={0}>
+              {showSettingsButton && (
+                <Button
+                  variant="quaternaryText"
+                  square
+                  icon={<RiSettings3Line />}
+                  aria-label={t('settingsTooltip')}
+                  onPress={() => {
+                    popupManager.createSettingsPopupWindow(room.slug, () => {})
+                  }}
+                />
+              )}
+              <Button
+                variant="quaternaryText"
+                square
+                icon={<RiFileCopyLine />}
+                onPress={() => {
+                  navigator.clipboard.writeText(roomUrl)
+                }}
+                aria-label={t('copyLinkTooltip')}
+              />
+              {searchParams.get('readOnly') === 'false' && (
+                <Button
+                  variant="quaternaryText"
+                  square
+                  icon={<RiCloseLine />}
+                  onPress={resetState}
+                  aria-label={t('resetLabel')}
+                />
+              )}
+            </HStack>
+          </HStack>
+          <VStack justify={'start'} alignItems="start" gap={0.25}>
+            <Text variant={'smNote'} margin={false} centered={false}>
+              {roomUrl.replace('https://', '')}
+            </Text>
+            <Text variant={'smNote'} margin={false} centered={false}>
+              {t('participantLimit')}
+            </Text>
+          </VStack>
+        </VStack>
+      ) : (
+        <div
+          className={css({
+            minHeight: '46px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          })}
+        >
+          {/*
+           * Using popup for La Suite Meet to access session cookies (blocked in iframes).
+           * If authenticated: Popup creates room and returns data directly.
+           * If not: Popup sends callbackId, redirects to login, then backend
+           * associates new room with callbackId after authentication.
+           */}
+          <Button
+            onPress={() => {
+              setIsPending(true)
+              popupManager.createPopupWindow(() => {
+                setIsPending(false)
+              })
+            }}
+            size="sm"
+          >
+            <CameraIcon />
+            {t('createButton')}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default CreateMeetingButton

@@ -1,0 +1,110 @@
+"""Recording-related LiveKit Events Service"""
+
+# pylint: disable=no-member
+
+from logging import getLogger
+
+from livekit import api
+
+from core import models, utils
+from core.models import Recording
+from core.recording.event.notification import notification_service
+from core.services.room_management import (
+    RoomManagement,
+    RoomManagementException,
+    RoomNotFoundException,
+)
+
+logger = getLogger(__name__)
+
+
+class RecordingEventsError(Exception):
+    """Recording event handling fails."""
+
+
+class RecordingNotSavableError(Exception):
+    """Recording cannot be saved because it is either in an error state or has already been saved"""
+
+
+class RecordingEventsService:
+    """Handles recording-related LiveKit webhook events."""
+
+    @staticmethod
+    def handle_update(recording: Recording, egress_status):
+        """Handle egress status updates and sync recording state to room metadata."""
+
+        room_name = str(recording.room.id)
+
+        status_mapping = {
+            api.EgressStatus.EGRESS_ACTIVE: "started",
+            api.EgressStatus.EGRESS_ENDING: "saving",
+            api.EgressStatus.EGRESS_ABORTED: "aborted",
+        }
+
+        recording_status = status_mapping.get(egress_status)
+        if recording_status:
+            try:
+                RoomManagement.update_metadata(
+                    room_name, {"recording_status": recording_status}
+                )
+            except RoomNotFoundException:
+                logger.info(
+                    "LiveKit room %s no longer exists, skipping metadata update",
+                    room_name,
+                )
+            except RoomManagementException as e:
+                logger.exception("Failed to update room's metadata: %s", e)
+
+    @staticmethod
+    def handle_limit_reached(recording: Recording):
+        """Stop recording and notify participants when limit is reached."""
+
+        recording.status = models.RecordingStatusChoices.STOPPED
+        recording.save()
+
+        notification_mapping = {
+            models.RecordingModeChoices.SCREEN_RECORDING: "screenRecordingLimitReached",
+            models.RecordingModeChoices.TRANSCRIPT: "transcriptionLimitReached",
+        }
+
+        notification_type = notification_mapping.get(recording.mode)
+        if not notification_type:
+            return
+
+        try:
+            utils.notify_participants(
+                room_name=str(recording.room.id),
+                notification_data={"type": notification_type},
+            )
+        except utils.NotificationError as e:
+            logger.exception(
+                "Failed to notify participants about recording limit reached: "
+                "room=%s, recording_id=%s, mode=%s",
+                recording.room.id,
+                recording.id,
+                recording.mode,
+            )
+            raise RecordingEventsError(
+                f"Failed to notify participants in room '{recording.room.id}' about "
+                f"recording limit reached (recording_id={recording.id})"
+            ) from e
+
+    @staticmethod
+    def handle_complete(recording: Recording):
+        """Notify external services and save recording."""
+
+        if not recording.is_savable():
+            raise RecordingNotSavableError
+
+        # Attempt to notify external services about the recording
+        # This is a non-blocking operation - failures are logged but don't interrupt the flow
+        notification_succeeded = notification_service.notify_external_services(
+            recording
+        )
+
+        recording.status = (
+            models.RecordingStatusChoices.NOTIFICATION_SUCCEEDED
+            if notification_succeeded
+            else models.RecordingStatusChoices.SAVED
+        )
+        recording.save()

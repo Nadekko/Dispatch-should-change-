@@ -1,0 +1,1570 @@
+"""API endpoints"""
+# pylint: disable=too-many-lines
+
+import uuid
+from datetime import timedelta
+from logging import getLogger
+from urllib.parse import unquote, urlparse
+from uuid import uuid4
+
+from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.storage import default_storage
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
+
+from django_filters import rest_framework as django_filters
+from rest_framework import (
+    decorators,
+    filters,
+    mixins,
+    pagination,
+    viewsets,
+)
+from rest_framework import (
+    exceptions as drf_exceptions,
+)
+from rest_framework import (
+    permissions as drf_permissions,
+)
+from rest_framework import (
+    response as drf_response,
+)
+from rest_framework import (
+    status as drf_status,
+)
+from rest_framework.settings import api_settings
+
+from core import analytics, enums, models, utils
+from core.api import throttling
+from core.api.filters import ListFileFilter
+from core.enums import MEDIA_STORAGE_URL_PATTERN
+from core.recording.enums import FileExtension
+from core.recording.event.authentication import RecordingProcessWebhookAuthentication
+from core.recording.services.metadata_collector import (
+    MetadataCollectorException,
+    MetadataCollectorService,
+)
+from core.recording.worker.exceptions import (
+    RecordingStartError,
+    RecordingStopError,
+)
+from core.recording.worker.factories import (
+    get_worker_service,
+)
+from core.recording.worker.mediator import (
+    WorkerServiceMediator,
+)
+from core.services.invitation import InvitationService
+from core.services.livekit_events import (
+    LiveKitEventsService,
+    LiveKitWebhookError,
+)
+from core.services.lobby import (
+    LobbyParticipantNotFound,
+    LobbyService,
+)
+from core.services.participants_management import (
+    ParticipantNotFoundException,
+    ParticipantsManagement,
+    ParticipantsManagementException,
+)
+from core.services.room_creation import RoomCreation
+from core.services.room_management import RoomManagement
+from core.services.room_roles import (
+    RoomRoleError,
+    RoomRoleService,
+)
+from core.services.subtitle import SubtitleException, SubtitleService
+from core.tasks.connection_test import delete_connection_test_room
+from core.tasks.file import process_file_deletion
+from core.utils import generate_token
+
+from ..authentication.livekit import LiveKitTokenAuthentication
+from ..models import RoomAccessLevel
+from . import permissions, serializers, throttling
+from .feature_flag import FeatureFlag
+
+# pylint: disable=too-many-ancestors
+
+logger = getLogger(__name__)
+
+
+class NestedGenericViewSet(viewsets.GenericViewSet):
+    """
+    A generic Viewset aims to be used in a nested route context.
+    e.g: `/api/v1.0/resource_1/<resource_1_pk>/resource_2/<resource_2_pk>/`
+
+    It allows to define all url kwargs and lookup fields to perform the lookup.
+    """
+
+    lookup_fields: list[str] = ["pk"]
+    lookup_url_kwargs: list[str] = []
+
+    def __getattribute__(self, file):
+        """
+        This method is overridden to allow to get the last lookup field or lookup url kwarg
+        when accessing the `lookup_field` or `lookup_url_kwarg` attribute. This is useful
+        to keep compatibility with all methods used by the parent class `GenericViewSet`.
+        """
+        if file in ["lookup_field", "lookup_url_kwarg"]:
+            return getattr(self, file + "s", [None])[-1]
+
+        return super().__getattribute__(file)
+
+    def get_queryset(self):
+        """
+        Get the list of files for this view.
+
+        `lookup_fields` attribute is enumerated here to perform the nested lookup.
+        """
+        queryset = super().get_queryset()
+
+        # The last lookup field is removed to perform the nested lookup as it corresponds
+        # to the object pk, it is used within get_object method.
+        lookup_url_kwargs = (
+            self.lookup_url_kwargs[:-1]
+            if self.lookup_url_kwargs
+            else self.lookup_fields[:-1]
+        )
+
+        filter_kwargs = {}
+        for index, lookup_url_kwarg in enumerate(lookup_url_kwargs):
+            if lookup_url_kwarg not in self.kwargs:
+                raise KeyError(
+                    f"Expected view {self.__class__.__name__} to be called with a URL "
+                    f'keyword argument named "{lookup_url_kwarg}". Fix your URL conf, or '
+                    "set the `.lookup_fields` attribute on the view correctly."
+                )
+
+            filter_kwargs.update(
+                {self.lookup_fields[index]: self.kwargs[lookup_url_kwarg]}
+            )
+
+        return queryset.filter(**filter_kwargs)
+
+
+class SerializerPerActionMixin:
+    """
+    A mixin to allow to define serializer classes for each action.
+
+    This mixin is useful to avoid to define a serializer class for each action in the
+    `get_serializer_class` method.
+    """
+
+    serializer_classes: dict[str, type] = {}
+    default_serializer_class: type = None
+
+    def get_serializer_class(self):
+        """
+        Return the serializer class to use depending on the action.
+        """
+        return self.serializer_classes.get(self.action, self.default_serializer_class)
+
+
+class Pagination(pagination.PageNumberPagination):
+    """Pagination to display no more than 100 objects per page sorted by creation date."""
+
+    ordering = "-created_on"
+    max_page_size = 100
+    page_size_query_param = "page_size"
+
+
+class UserViewSet(
+    mixins.UpdateModelMixin, viewsets.GenericViewSet, mixins.ListModelMixin
+):
+    """User ViewSet"""
+
+    permission_classes = [permissions.IsSelf]
+    queryset = models.User.objects.all()
+    serializer_class = serializers.UserSerializer
+
+    def get_queryset(self):
+        """
+        Limit listed users by querying the email field with a trigram similarity
+        search if a query is provided.
+        Limit listed users by excluding users already in the document if a document_id
+        is provided.
+        """
+        queryset = self.queryset
+
+        if self.action == "list":
+            if not settings.ALLOW_UNSECURE_USER_LISTING:
+                return models.User.objects.none()
+
+            # Filter users by email similarity
+            if query := self.request.GET.get("q", ""):
+                queryset = queryset.filter(email__trigram_word_similar=query)
+
+        return queryset
+
+    @decorators.action(
+        detail=False,
+        methods=["get"],
+        url_name="me",
+        url_path="me",
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def get_me(self, request):
+        """
+        Return information on currently logged user
+        """
+        context = {"request": request}
+        return drf_response.Response(
+            self.serializer_class(request.user, context=context).data
+        )
+
+
+class RoomViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    API endpoints to access and perform actions on rooms.
+    """
+
+    pagination_class = Pagination
+    permission_classes = [permissions.RoomPermissions]
+    queryset = models.Room.objects.all()
+    serializer_class = serializers.RoomSerializer
+
+    def get_object(self):
+        """Allow getting a room by its slug."""
+        try:
+            uuid.UUID(self.kwargs["pk"])
+            filter_kwargs = {"pk": self.kwargs["pk"]}
+        except ValueError:
+            filter_kwargs = {"slug": slugify(self.kwargs["pk"])}
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = get_object_or_404(queryset, **filter_kwargs)
+        # May raise a permission denied
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Allow unregistered rooms when activated.
+        For unregistered rooms we only return a null id and the livekit room and token.
+        """
+        try:
+            instance = self.get_object()
+        except Http404:
+            if not settings.ALLOW_UNREGISTERED_ROOMS:
+                raise
+            slug = slugify(self.kwargs["pk"])
+            username = request.query_params.get("username", None)
+            data = {
+                "id": None,
+                "slug": slug,
+                "is_administrable": False,
+                "access_level": RoomAccessLevel.PUBLIC,
+                "livekit": {
+                    "url": settings.LIVEKIT_CONFIGURATION["url"],
+                    "room": slug,
+                    "token": utils.generate_token(
+                        room=slug, user=request.user, username=username
+                    ),
+                },
+            }
+        else:
+            data = self.get_serializer(instance).data
+
+        return drf_response.Response(data)
+
+    def list(self, request, *args, **kwargs):
+        """Limit listed rooms to the ones related to the authenticated user."""
+        user = self.request.user
+
+        if user.is_authenticated:
+            queryset = (
+                self.filter_queryset(self.get_queryset()).filter(users=user).distinct()
+            )
+        else:
+            queryset = self.get_queryset().none()
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return drf_response.Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """Set the current user as owner of the newly created room.
+
+        Apply the user's default room preferences (access level and configuration)
+        unless the request explicitly provides its own values.
+        """
+        user = self.request.user
+        save_kwargs = {}
+
+        if (
+            "access_level" not in serializer.validated_data
+            and user.default_room_access_level not in (None, "")
+        ):
+            save_kwargs["access_level"] = user.default_room_access_level
+
+        user_default_configuration = user.default_room_configuration
+        if not serializer.validated_data.get(
+            "configuration"
+        ) and user_default_configuration not in (None, {}):
+            save_kwargs["configuration"] = user.default_room_configuration
+
+        room = serializer.save(**save_kwargs)
+        models.ResourceAccess.objects.create(
+            resource=room,
+            user=self.request.user,
+            role=models.RoleChoices.OWNER,
+        )
+
+        if callback_id := self.request.data.get("callback_id"):
+            RoomCreation().persist_callback_state(callback_id, room)
+
+        analytics.capture(
+            self.request.user,
+            analytics.AnalyticsEvent.ROOM_CREATED,
+            {
+                "room_id": str(room.pk),
+                "access_level": room.access_level,
+                "from_callback": bool(self.request.data.get("callback_id")),
+            },
+        )
+
+    def perform_update(self, serializer):
+        """Persist the room update, then sync metadata to LiveKit."""
+
+        old_configuration = serializer.instance.configuration
+        old_access_level = serializer.instance.access_level
+
+        room = serializer.save()
+
+        if (
+            room.configuration == old_configuration
+            and room.access_level == old_access_level
+        ):
+            return
+
+        RoomManagement.sync_room_metadata(room)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="start-recording",
+        permission_classes=[
+            permissions.HasPrivilegesOnRoom,
+        ],
+    )
+    @FeatureFlag.require("recording")
+    def start_room_recording(self, request, pk=None):  # pylint: disable=unused-argument
+        """Start recording a room."""
+
+        serializer = serializers.StartRecordingSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return drf_response.Response(
+                {"detail": "Invalid request."}, status=drf_status.HTTP_400_BAD_REQUEST
+            )
+
+        mode = serializer.validated_data["mode"]
+        options = serializer.validated_data.get("options")
+        room = self.get_object()
+
+        try:
+            with transaction.atomic():
+                recording = models.Recording.objects.create(
+                    room=room,
+                    mode=mode,
+                    options=options.model_dump(exclude_none=True) if options else {},
+                )
+                models.RecordingAccess.objects.create(
+                    user=self.request.user,
+                    role=models.RoleChoices.OWNER,
+                    recording=recording,
+                )
+
+        except (DjangoValidationError, IntegrityError):
+            # DjangoValidationError covers the Python-level check (full_clean);
+            # IntegrityError covers the race where two concurrent requests both
+            # pass that check and the DB-level UNIQUE constraint catches the loser.
+            return drf_response.Response(
+                {"error": f"A recording is already in progress for room {room.slug}"},
+                status=drf_status.HTTP_409_CONFLICT,
+            )
+
+        worker_service = get_worker_service(mode=recording.mode)
+        worker_manager = WorkerServiceMediator(worker_service=worker_service)
+
+        try:
+            worker_manager.start(recording)
+        except RecordingStartError:
+            models.Recording.objects.filter(pk=recording.pk).update(
+                status=models.RecordingStatusChoices.FAILED_TO_START
+            )
+            return drf_response.Response(
+                {"error": f"Recording failed to start for room {room.slug}"},
+                status=drf_status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if settings.METADATA_COLLECTOR_ENABLED and (
+            recording.options.get("collect_metadata", False)
+        ):
+            try:
+                MetadataCollectorService().start(recording)
+                logger.debug("Started MetadataCollectorService")
+            except MetadataCollectorException:
+                logger.warning("Failed to start MetadataCollectorService")
+
+        return drf_response.Response(
+            {"message": f"Recording successfully started for room {room.slug}"},
+            status=drf_status.HTTP_201_CREATED,
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="stop-recording",
+        permission_classes=[
+            permissions.HasPrivilegesOnRoom,
+        ],
+    )
+    @FeatureFlag.require("recording")
+    def stop_room_recording(self, request, pk=None):  # pylint: disable=unused-argument
+        """Stop room recording."""
+
+        room = self.get_object()
+
+        try:
+            recording = models.Recording.objects.get(
+                room=room, status=models.RecordingStatusChoices.ACTIVE
+            )
+        except models.Recording.DoesNotExist as e:
+            raise drf_exceptions.NotFound(
+                "No active recording found for this room."
+            ) from e
+
+        worker_service = get_worker_service(mode=recording.mode)
+        worker_manager = WorkerServiceMediator(worker_service=worker_service)
+
+        try:
+            worker_manager.stop(recording)
+        except RecordingStopError:
+            return drf_response.Response(
+                {"error": f"Recording failed to stop for room {room.slug}"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {"message": f"Recording stopped for room {room.slug}."}
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="request-entry",
+        permission_classes=[],
+        throttle_classes=[
+            throttling.RequestEntryAuthenticatedUserRateThrottle,
+            throttling.RequestEntryAnonRateThrottle,
+        ],
+    )
+    def request_entry(self, request, pk=None):  # pylint: disable=unused-argument
+        """Request entry to a room"""
+
+        serializer = serializers.RequestEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        room = self.get_object()
+        lobby_service = LobbyService()
+
+        participant, livekit = lobby_service.request_entry(
+            room=room,
+            request=request,
+            **serializer.validated_data,
+        )
+        response = drf_response.Response({**participant.to_dict(), "livekit": livekit})
+        lobby_service.prepare_response(response, participant.id)
+
+        return response
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="enter",
+        permission_classes=[
+            permissions.CanManageLobby,
+        ],
+    )
+    def allow_participant_to_enter(self, request, pk=None):  # pylint: disable=unused-argument
+        """Accept or deny a participant's entry request."""
+
+        serializer = serializers.ParticipantEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        room = self.get_object()
+
+        if room.is_public:
+            return drf_response.Response(
+                {"message": "Room has no lobby system."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+        lobby_service = LobbyService()
+
+        try:
+            lobby_service.handle_participant_entry(
+                room_id=room.id,
+                participant_id=str(serializer.validated_data.get("participant_id")),
+                allow_entry=serializer.validated_data.get("allow_entry"),
+            )
+            return drf_response.Response({"message": "Participant was updated."})
+
+        except LobbyParticipantNotFound:
+            return drf_response.Response(
+                {"message": "Participant not found."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+    @decorators.action(
+        detail=True,
+        methods=["GET"],
+        url_path="waiting-participants",
+        permission_classes=[
+            permissions.CanManageLobby,
+        ],
+    )
+    def list_waiting_participants(self, request, pk=None):  # pylint: disable=unused-argument
+        """List waiting participants."""
+        room = self.get_object()
+
+        if room.is_public:
+            return drf_response.Response({"participants": []})
+
+        lobby_service = LobbyService()
+
+        participants = lobby_service.list_waiting_participants(room.id)
+        return drf_response.Response({"participants": participants})
+
+    @decorators.action(
+        detail=False,
+        methods=["post"],
+        url_path="webhooks-livekit",
+        permission_classes=[],
+    )
+    def webhooks_livekit(self, request):
+        """Process webhooks from LiveKit."""
+
+        livekit_events_service = LiveKitEventsService()
+
+        try:
+            livekit_events_service.receive(request)
+            return drf_response.Response(
+                {"status": "success"}, status=drf_status.HTTP_200_OK
+            )
+        except LiveKitWebhookError as e:
+            status_code = getattr(e, "status_code", drf_status.HTTP_400_BAD_REQUEST)
+
+            if status_code == drf_status.HTTP_500_INTERNAL_SERVER_ERROR:
+                raise e
+
+            return drf_response.Response({"status": "error"}, status=status_code)
+
+    @decorators.action(
+        detail=False,
+        methods=["post"],
+        url_path="creation-callback",
+        permission_classes=[],
+        throttle_classes=[throttling.CreationCallbackAnonRateThrottle],
+    )
+    def creation_callback(self, request):
+        """Retrieve cached room data via an unauthenticated request with a unique ID.
+
+        Designed for interoperability across iframes, popups, and other contexts,
+        even on the same domain, bypassing browser security restrictions on direct communication.
+        """
+
+        serializer = serializers.CreationCallbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        room = RoomCreation().get_callback_state(
+            callback_id=serializer.validated_data.get("callback_id")
+        )
+
+        return drf_response.Response(
+            {"status": "success", "room": room}, status=drf_status.HTTP_200_OK
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="invite",
+        permission_classes=[
+            permissions.HasPrivilegesOnRoom,
+        ],
+    )
+    def invite(self, request, pk=None):  # pylint: disable=unused-argument
+        """Send email invitations to join a room.
+
+        This API endpoint allows a user with appropriate privileges to send email invitations
+        to one or more recipients, inviting them to join the specified room.
+        """
+
+        room = self.get_object()
+
+        serializer = serializers.RoomInviteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        emails = serializer.validated_data.get("emails")
+        emails = list(set(emails))
+
+        InvitationService().invite_to_room(
+            room=room, sender=request.user, emails=emails
+        )
+
+        return drf_response.Response(
+            {"status": "success", "message": "invitations sent"},
+            status=drf_status.HTTP_200_OK,
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="update-participant-role",
+        permission_classes=[
+            permissions.HasPrivilegesOnRoom,
+            permissions.IsPresentInMeeting,
+        ],
+    )
+    def update_participant_role(self, request, pk=None):  # pylint: disable=unused-argument
+        """Promote or demote a participant currently connected to the meeting.
+
+        Requires the requester to be session-authenticated, have privileges
+        (admin/owner) on the room, and be connected to the meeting.
+
+        If the target participant has a user account, the role is persisted
+        (`ResourceAccess`) then mirrored to their LiveKit attributes.
+
+        If the participant is anonymous, the promotion will fail.
+        """
+
+        room = self.get_object()
+
+        serializer = serializers.ParticipantRoleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        participant_identity = serializer.validated_data["participant_identity"]
+        role = serializer.validated_data["role"]
+
+        if str(request.user.sub) == str(participant_identity):
+            return drf_response.Response(
+                {"error": "You cannot change your own role."},
+                status=drf_status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            result = RoomRoleService().set_participant_role(
+                room=room,
+                participant_identity=participant_identity,
+                role=role,
+                actor=request.user,
+            )
+        except RoomRoleError as e:
+            return drf_response.Response({"error": str(e)}, status=e.status_code)
+
+        return drf_response.Response(result, status=drf_status.HTTP_200_OK)
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="start-subtitle",
+        permission_classes=[
+            permissions.HasLiveKitRoomAccess,
+        ],
+        authentication_classes=[LiveKitTokenAuthentication],
+    )
+    @FeatureFlag.require("subtitle")
+    def start_subtitle(self, request, pk=None):  # pylint: disable=unused-argument
+        """Start realtime transcription for the room.
+
+        Requires valid LiveKit token for room authorization.
+        Anonymous users can start subtitles if they have room access tokens.
+        """
+
+        room = self.get_object()
+
+        try:
+            SubtitleService().start_subtitle(room)
+        except SubtitleException:
+            return drf_response.Response(
+                {"error": f"Subtitles failed to start for room {room.slug}"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {"status": "success"}, status=drf_status.HTTP_200_OK
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="mute-participant",
+        url_name="mute-participant",
+        permission_classes=[permissions.CanMuteParticipant],
+        authentication_classes=[
+            LiveKitTokenAuthentication,
+            *api_settings.DEFAULT_AUTHENTICATION_CLASSES,
+        ],
+    )
+    def mute_participant(self, request, pk=None):  # pylint: disable=unused-argument
+        """Mute a specific track for a participant in the room."""
+        room = self.get_object()
+
+        serializer = serializers.MuteParticipantSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # TEMPORARY: a LiveKit token proves access was granted, not that the caller
+        # joined. Cross-check identity against the live participant list until auth
+        # is hardened. Skipped for non-LiveKit auth backends.
+        caller_identity = getattr(request.auth, "identity", None)
+        if caller_identity is not None:
+            try:
+                ParticipantsManagement().check_if_in_meeting(
+                    room_name=str(room.pk),
+                    identity=caller_identity,
+                )
+            except (ParticipantNotFoundException, ParticipantsManagementException):
+                logger.warning(
+                    "Failed to verify caller presence for mute in room %s; denying",
+                    room.pk,
+                )
+                return drf_response.Response(
+                    {"error": "Could not verify caller presence"},
+                    status=drf_status.HTTP_403_FORBIDDEN,
+                )
+
+        try:
+            ParticipantsManagement().mute(
+                room_name=str(room.pk),
+                identity=str(serializer.validated_data["participant_identity"]),
+                track_sid=serializer.validated_data["track_sid"],
+            )
+        except ParticipantNotFoundException:
+            return drf_response.Response(
+                {"error": "Participant not found"},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+        except ParticipantsManagementException:
+            return drf_response.Response(
+                {"error": "Failed to mute participant"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {
+                "status": "success",
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="update-participant",
+        url_name="update-participant",
+        permission_classes=[permissions.HasPrivilegesOnRoom],
+    )
+    def update_participant(self, request, pk=None):  # pylint: disable=unused-argument
+        """Update participant attributes, permissions, or metadata."""
+        room = self.get_object()
+
+        serializer = serializers.UpdateParticipantSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        permission = serializer.validated_data.get("permission")
+
+        try:
+            ParticipantsManagement().update(
+                room_name=str(room.pk),
+                identity=str(serializer.validated_data["participant_identity"]),
+                metadata=serializer.validated_data.get("metadata"),
+                attributes=serializer.validated_data.get("attributes"),
+                permission=permission.model_dump() if permission else None,
+                name=serializer.validated_data.get("name"),
+            )
+        except ParticipantNotFoundException:
+            return drf_response.Response(
+                {"error": "Participant not found"},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+        except ParticipantsManagementException:
+            return drf_response.Response(
+                {"error": "Failed to update participant"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {
+                "status": "success",
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="remove-participant",
+        url_name="remove-participant",
+        permission_classes=[permissions.HasPrivilegesOnRoom],
+    )
+    def remove_participant(self, request, pk=None):  # pylint: disable=unused-argument
+        """Remove a participant from the room."""
+        room = self.get_object()
+
+        serializer = serializers.BaseParticipantsManagementSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            ParticipantsManagement().remove(
+                room_name=str(room.pk),
+                identity=str(serializer.validated_data["participant_identity"]),
+            )
+        except ParticipantNotFoundException:
+            return drf_response.Response(
+                {"error": "Participant not found"},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+        except ParticipantsManagementException:
+            return drf_response.Response(
+                {"error": "Failed to remove participant"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {"status": "success"}, status=drf_status.HTTP_200_OK
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="toggle-hand",
+        url_name="toggle-hand",
+        permission_classes=[permissions.HasLiveKitRoomAccess],
+        authentication_classes=[LiveKitTokenAuthentication],
+    )
+    def toggle_hand(self, request, pk=None):  # pylint: disable=unused-argument
+        """Raise or lower the current participant's hand in the room."""
+        room = self.get_object()
+
+        serializer = serializers.RaiseHandSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        identity = request.auth.identity
+
+        # LiveKit uses the handRaisedAt participant attribute to signal hand state.
+        # An empty string means the hand is lowered; a non-empty ISO 8601 timestamp
+        # means the hand is raised. The timestamp is used by clients to determine
+        # the order in which participants raised their hands.
+        hand_raised_at = (
+            timezone.now().isoformat() if serializer.validated_data["raised"] else ""
+        )
+
+        try:
+            ParticipantsManagement().update(
+                room_name=str(room.pk),
+                identity=identity,
+                attributes={"handRaisedAt": hand_raised_at},
+            )
+        except ParticipantNotFoundException:
+            return drf_response.Response(
+                {"error": "Participant not found"},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+        except ParticipantsManagementException:
+            return drf_response.Response(
+                {"error": "Failed to update participant hand state"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {"status": "success"},
+            status=drf_status.HTTP_200_OK,
+        )
+
+    @decorators.action(
+        detail=True,
+        methods=["post"],
+        url_path="rename",
+        url_name="rename",
+        permission_classes=[permissions.HasLiveKitRoomAccess],
+        authentication_classes=[LiveKitTokenAuthentication],
+    )
+    def rename(self, request, pk=None):  # pylint: disable=unused-argument
+        """Rename the current participant in the room."""
+        room = self.get_object()
+
+        if (
+            not settings.AUTHENTICATED_PARTICIPANTS_CAN_EDIT_DISPLAY_NAME
+            and request.user.is_authenticated
+        ):
+            return drf_response.Response(
+                {"error": "Authenticated participants cannot edit their display name"},
+                status=drf_status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = serializers.RenameParticipantSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        identity = request.auth.identity
+
+        try:
+            ParticipantsManagement().update(
+                room_name=str(room.pk),
+                identity=identity,
+                name=serializer.validated_data["name"],
+            )
+        except ParticipantNotFoundException:
+            return drf_response.Response(
+                {"error": "Participant not found"},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+        except ParticipantsManagementException:
+            return drf_response.Response(
+                {"error": "Failed to rename participant"},
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return drf_response.Response(
+            {"status": "success"},
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class ResourceAccessViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    API endpoints to access and perform actions on resource accesses.
+    """
+
+    permission_classes = [permissions.ResourceAccessPermission]
+    queryset = models.ResourceAccess.objects.all()
+    serializer_class = serializers.ResourceAccessSerializer
+
+    def get_queryset(self):
+        """Return the queryset according to the action."""
+
+        queryset = super().get_queryset()
+
+        # Restrict access to resources the user either has explicit
+        # permissions for or administrative privileges over.
+        if self.action == "list":
+            user = self.request.user
+            queryset = queryset.filter(
+                Q(resource__accesses__user=user),
+                resource__accesses__role__in=[
+                    models.RoleChoices.ADMIN,
+                    models.RoleChoices.OWNER,
+                ],
+            ).distinct()
+
+        return queryset
+
+
+class RecordingViewSet(
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    API endpoints to access and perform actions on recordings.
+    """
+
+    pagination_class = Pagination
+    permission_classes = [permissions.HasAbilityPermission]
+    queryset = models.Recording.objects.all()
+    serializer_class = serializers.RecordingSerializer
+
+    def get_queryset(self):
+        """Restrict recordings to the user's ones."""
+        user = self.request.user
+        return (
+            super()
+            .get_queryset()
+            .filter(Q(accesses__user=user) | Q(accesses__team__in=user.get_teams()))
+        )
+
+    @decorators.action(
+        detail=False,
+        methods=["post"],
+        url_path="external-process-hook",
+        authentication_classes=[RecordingProcessWebhookAuthentication],
+        serializer_class=serializers.ExternalProcessEventSerializer,
+    )
+    def on_external_process_event_received(self, request, pk=None):  # pylint: disable=unused-argument
+        """Handle incoming external process events for recordings."""
+        logger.debug("Processing external process event %s", request.data)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        ok_response = drf_response.Response(
+            {"message": "Event processed."},
+        )
+
+        validated_data = serializer.validated_data
+        job_id = validated_data["job_id"]
+        try:
+            recording = models.Recording.objects.get(external_process_id=job_id)
+        except models.Recording.DoesNotExist as e:
+            logger.warning("No recording found for job_id %s: %s", job_id, e)
+            return ok_response
+
+        if validated_data.get("type") == "transcript":
+            if validated_data.get("status") == "success":
+                logger.info(
+                    "External process transcript success received for recording %s",
+                    job_id,
+                )
+                recording.status = (
+                    models.RecordingStatusChoices.EXTERNAL_PROCESS_SUCCESSFUL
+                )
+                recording.save()
+                return ok_response
+
+            if validated_data.get("status") == "failure":
+                logger.info(
+                    "External process transcript failure received for recording %s",
+                    job_id,
+                )
+                recording.status = models.RecordingStatusChoices.EXTERNAL_PROCESS_FAILED
+                recording.save()
+                return ok_response
+
+        logger.info(
+            "No changes to save for external process id %s and payload %s",
+            job_id,
+            validated_data,
+        )
+
+        return ok_response
+
+    def _auth_get_original_url(self, request):
+        """
+        Extracts and parses the original URL from the configured header.
+        Raises PermissionDenied if the header is missing.
+        The original url is passed by the reverse proxy in the header named by the
+        MEDIA_AUTH_ORIGINAL_URL_HEADER setting, which defaults to "HTTP_X_ORIGINAL_URL".
+        See corresponding ingress configuration in Helm chart and read about the
+        nginx.ingress.kubernetes.io/auth-url annotation to understand how the Nginx ingress
+        is configured to do this.
+        Based on the original url and the logged-in user, we must decide if we authorize Nginx
+        to let this request go through (by returning a 200 code) or if we block it (by returning
+        a 403 error). Note that we return 403 errors without any further details for security
+        reasons.
+        """
+        # Extract the original URL from the request header
+        original_url = request.META.get(settings.MEDIA_AUTH_ORIGINAL_URL_HEADER)
+        if not original_url:
+            logger.warning(
+                "Missing %s header in subrequest. Set MEDIA_AUTH_ORIGINAL_URL_HEADER "
+                "to the header your reverse proxy sends.",
+                settings.MEDIA_AUTH_ORIGINAL_URL_HEADER,
+            )
+            raise drf_exceptions.PermissionDenied()
+
+        logger.debug("Original url: '%s'", original_url)
+        return urlparse(original_url)
+
+    def _auth_get_url_params(self, pattern, fragment):
+        """
+        Extracts URL parameters from the given fragment using the specified regex pattern.
+        Raises PermissionDenied if parameters cannot be extracted.
+        """
+
+        match = pattern.search(fragment)
+
+        try:
+            return match.groupdict()
+        except (ValueError, AttributeError) as exc:
+            logger.warning("Failed to extract parameters from subrequest URL: %s", exc)
+            raise drf_exceptions.PermissionDenied() from exc
+
+    @decorators.action(detail=False, methods=["get"], url_path="media-auth")
+    def media_auth(self, request, *args, **kwargs):
+        """
+        This view is used by an Nginx subrequest to control access to a recording's
+        media file.
+        When we let the request go through, we compute authorization headers that will be added to
+        the request going through thanks to the nginx.ingress.kubernetes.io/auth-response-headers
+        annotation. The request will then be proxied to the object storage backend who will
+        respond with the file after checking the signature included in headers.
+        """
+
+        parsed_url = self._auth_get_original_url(request)
+
+        url_params = self._auth_get_url_params(
+            enums.RECORDING_STORAGE_URL_PATTERN, parsed_url.path
+        )
+
+        user = request.user
+        recording_id = url_params["recording_id"]
+
+        extension = url_params["extension"]
+        if extension not in [file.value for file in FileExtension]:
+            raise drf_exceptions.ValidationError({"detail": "Unsupported extension."})
+
+        try:
+            recording = models.Recording.objects.get(id=recording_id)
+        except models.Recording.DoesNotExist as e:
+            raise drf_exceptions.NotFound("No recording found for this event.") from e
+
+        if extension != recording.extension:
+            raise drf_exceptions.NotFound("No recording found with this extension.")
+
+        abilities = recording.get_abilities(user)
+
+        if not abilities["retrieve"]:
+            logger.debug("User '%s' lacks permission for attachment", user.id)
+            raise drf_exceptions.PermissionDenied()
+
+        if not recording.is_saved:
+            logger.debug("Recording '%s' has not been saved", recording)
+            raise drf_exceptions.PermissionDenied()
+
+        request = utils.generate_s3_authorization_headers(recording.key)
+
+        return drf_response.Response("authorized", headers=request.headers, status=200)
+
+
+# pylint: disable=too-many-public-methods
+class FileViewSet(
+    SerializerPerActionMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    FileViewSet API.
+
+    This viewset provides CRUD operations and additional actions for managing files.
+
+    ### API Endpoints:
+    1. **List**: Retrieve a paginated list of files.
+       Example: GET /files/?page=2
+    2. **Retrieve**: Get a specific file by its ID.
+       Example: GET /files/{id}/
+    3. **Create**: Create a new file.
+       Example: POST /files/
+    4. **Update**: Update a file by its ID.
+       Example: PUT /files/{id}/
+    5. **Delete**: Soft delete a file by its ID.
+       Example: DELETE /files/{id}/
+
+
+    ### Ordering: created_at, updated_at, title
+
+        Example:
+        - Ascending: GET /api/v1.0/files/?ordering=created_at
+
+    ### Filtering:
+        - `is_creator_me=true`: Returns files created by the current user.
+        - `is_creator_me=false`: Returns files created by other users.
+        - `is_deleted=false`: Returns files that are not (soft) deleted
+
+        Example:
+        - GET /api/v1.0/files/?is_creator_me=true
+        - GET /api/v1.0/files/?is_creator_me=false&is_deleted=false
+
+    ### Notes:
+    - Implements soft delete logic to retain file
+    """
+
+    ordering = ["-updated_at"]
+    ordering_fields = ["created_at", "updated_at", "title"]
+    pagination_class = Pagination
+    permission_classes = [
+        permissions.FilePermission,
+    ]
+    queryset = models.File.objects.filter(hard_deleted_at__isnull=True)
+    default_serializer_class = serializers.FileSerializer
+    serializer_classes = {
+        "list": serializers.ListFileSerializer,
+        "create": serializers.CreateFileSerializer,
+    }
+    filter_backends = (django_filters.DjangoFilterBackend, filters.OrderingFilter)
+    filterset_class = ListFileFilter
+
+    def get_queryset(self):
+        """Get queryset that defaults to the current request user."""
+        user = self.request.user
+        queryset = super().get_queryset().select_related("creator")
+
+        if not user.is_authenticated:
+            return queryset.none()
+
+        # For now, we force the filtering on the current user in all cases, might evolve later
+        queryset = queryset.filter(creator=user)
+        return queryset
+
+    def get_response_for_queryset(self, queryset, context=None):
+        """Return paginated response for the queryset if requested."""
+        context = context or self.get_serializer_context()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context=context)
+            result = self.get_paginated_response(serializer.data)
+            return result
+
+        serializer = self.get_serializer(queryset, many=True, context=context)
+        return drf_response.Response(serializer.data)
+
+    def perform_create(self, serializer):
+        """Set the current user as creator of the newly created file."""
+
+        if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+            file_type = serializer.validated_data["type"]
+            config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file_type]
+
+            count = models.File.objects.filter(
+                creator=self.request.user,
+                deleted_at__isnull=True,
+                type=file_type,
+            ).count()
+
+            if count >= config_for_file_type["max_count_by_user"]:
+                logger.info(
+                    "create_item: user reached max files per user for type %s",
+                    file_type,
+                )
+                raise serializers.PermissionDenied(
+                    _("You have reached the maximum number of files for this type.")
+                )
+
+        serializer.save(creator=self.request.user)
+
+    def perform_destroy(self, instance):
+        """Override to implement a soft delete instead of dumping the record in database.
+
+        Files are actually purged by commands that should run periodically.
+        """
+        instance.soft_delete()
+
+    @decorators.action(detail=True, methods=["post"], url_path="upload-ended")
+    @FeatureFlag.require("file_upload")
+    def upload_ended(self, request, *args, **kwargs):
+        """
+        Check the actual uploaded file and mark it as ready.
+        """
+        # Ensures we go through authorization checks
+        file = self.get_object()
+
+        # Try to update the file with the new state. If the file is already in this state
+        # we are in a concurrent request, and we should reject that request
+        updated_rows = models.File.objects.filter(
+            upload_state=models.FileUploadStateChoices.PENDING,
+            pk=kwargs["pk"],
+        ).update(upload_state=models.FileUploadStateChoices.ANALYZING)
+        if updated_rows != 1:
+            raise drf_exceptions.ValidationError(
+                {"file": "This action is only available for files in PENDING state."},
+                code="file_upload_state_not_pending",
+            )
+        file.refresh_from_db()
+
+        s3_client = default_storage.connection.meta.client
+        validation_error = None
+
+        try:
+            # We copy the file to its final destination, we will run the checks on that
+            # final file and ignore any updates to the temporary file. (We cannot revoke the policy,
+            # so the temporary file might still be updated after that.)
+            # The temporary folders will need to be cleaned periodically
+            s3_client.copy_object(
+                Bucket=default_storage.bucket_name,
+                Key=file.file_key,
+                CopySource={
+                    "Bucket": default_storage.bucket_name,
+                    "Key": file.temporary_file_key,
+                },
+            )
+
+            head_response = s3_client.head_object(
+                Bucket=default_storage.bucket_name, Key=file.file_key
+            )
+            file_size = head_response["ContentLength"]
+            # python-magic recommends using at least the first 2048 bytes
+            # to reduce incorrect identification.
+            # This is a tradeoff between pulling in the whole file and
+            # the most likely relevant bytes
+            # of the file for mime type identification.
+            if file_size > 2048:
+                range_response = s3_client.get_object(
+                    Bucket=default_storage.bucket_name,
+                    Key=file.file_key,
+                    Range="bytes=0-2047",
+                )
+                file_head = range_response["Body"].read()
+            else:
+                file_head = s3_client.get_object(
+                    Bucket=default_storage.bucket_name, Key=file.file_key
+                )["Body"].read()
+
+            logger.info("upload_ended: detecting mimetype for file: %s", file.file_key)
+            mimetype = utils.detect_mimetype(file_head, filename=file.filename)
+
+            if settings.FILE_UPLOAD_APPLY_RESTRICTIONS:
+                config_for_file_type = settings.FILE_UPLOAD_RESTRICTIONS[file.type]
+                if file_size > config_for_file_type["max_size"]:
+                    logger.info(
+                        "upload_ended: file size (%s) for file %s higher than the allowed max size",
+                        file_size,
+                        file.file_key,
+                    )
+                    validation_error = drf_exceptions.ValidationError(
+                        detail="The file size is higher than the allowed max size.",
+                        code="file_size_exceeded",
+                    )
+                else:
+                    # Use improved MIME type detection combining magic bytes and file extension
+                    allowed_file_mimetypes = config_for_file_type["allowed_mimetypes"]
+                    if mimetype not in allowed_file_mimetypes:
+                        logger.warning(
+                            "upload_ended: mimetype not allowed %s for file %s",
+                            mimetype,
+                            file.file_key,
+                        )
+                        validation_error = drf_exceptions.ValidationError(
+                            detail="The file type is not allowed.",
+                            code="file_type_not_allowed",
+                        )
+
+            if validation_error is not None:
+                self._complete_file_deletion(file)
+            else:
+                file.upload_state = models.FileUploadStateChoices.READY
+                file.mimetype = mimetype
+                file.size = file_size
+                file.save(update_fields=["upload_state", "mimetype", "size"])
+
+                if head_response["ContentType"] != mimetype:
+                    logger.info(
+                        "upload_ended: content type mismatch between object storage and file,"
+                        " updating from %s to %s",
+                        head_response["ContentType"],
+                        mimetype,
+                    )
+                    s3_client.copy_object(
+                        Bucket=default_storage.bucket_name,
+                        Key=file.file_key,
+                        CopySource={
+                            "Bucket": default_storage.bucket_name,
+                            "Key": file.file_key,
+                        },
+                        ContentType=mimetype,
+                        Metadata=head_response["Metadata"],
+                        MetadataDirective="REPLACE",
+                    )
+        except Exception as e:
+            logger.exception("Failed to analyze file, reverting to pending state")
+            file.upload_state = models.FileUploadStateChoices.PENDING
+            file.save()
+            raise e
+
+        if validation_error:
+            raise validation_error
+
+        # Not yet implemented
+        # Change the file.upload_state when this will be done
+        # malware_detection.analyse_file(file.file_key, file_id=file.id)
+
+        serializer = self.get_serializer(file)
+
+        return drf_response.Response(serializer.data, status=drf_status.HTTP_200_OK)
+
+    def _complete_file_deletion(self, file):
+        """Delete a file completely."""
+        file.soft_delete()
+        file.hard_delete()
+        transaction.on_commit(lambda: process_file_deletion.delay(file.id))
+
+    def _authorize_subrequest(self, request, pattern):
+        """
+        Authorize access based on the original URL of an Nginx subrequest
+        and user permissions. Returns a dictionary of URL parameters if authorized.
+
+        The original url is passed by the reverse proxy in the header named by the
+        MEDIA_AUTH_ORIGINAL_URL_HEADER setting, which defaults to "HTTP_X_ORIGINAL_URL".
+        See corresponding ingress configuration in Helm chart and read about the
+        nginx.ingress.kubernetes.io/auth-url annotation to understand how the Nginx ingress
+        is configured to do this.
+
+        Based on the original url and the logged in user, we must decide if we authorize Nginx
+        to let this request go through (by returning a 200 code) or if we block it (by returning
+        a 403 error). Note that we return 403 errors without any further details for security
+        reasons.
+
+        Parameters:
+        - pattern: The regex pattern to extract identifiers from the URL.
+
+        Returns:
+        - A dictionary of URL parameters if the request is authorized.
+        Raises:
+        - PermissionDenied if authorization fails.
+        """
+        # Extract the original URL from the request header
+        original_url = request.META.get(settings.MEDIA_AUTH_ORIGINAL_URL_HEADER)
+        if not original_url:
+            logger.warning(
+                "Missing %s header in subrequest. Set MEDIA_AUTH_ORIGINAL_URL_HEADER "
+                "to the header your reverse proxy sends.",
+                settings.MEDIA_AUTH_ORIGINAL_URL_HEADER,
+            )
+            raise drf_exceptions.PermissionDenied()
+
+        parsed_url = urlparse(original_url)
+        match = pattern.search(unquote(parsed_url.path))
+
+        if not match:
+            logger.warning(
+                "Subrequest URL '%s' did not match pattern '%s'",
+                parsed_url.path,
+                pattern,
+            )
+            raise drf_exceptions.PermissionDenied()
+
+        try:
+            url_params = match.groupdict()
+        except (ValueError, AttributeError) as exc:
+            logger.warning("Failed to extract parameters from subrequest URL: %s", exc)
+            raise drf_exceptions.PermissionDenied() from exc
+
+        pk = url_params.get("pk")
+        if not pk:
+            logger.warning("File ID (pk) not found in URL parameters: %s", url_params)
+            raise drf_exceptions.PermissionDenied()
+
+        # Fetch the file and check if the user has access
+        queryset = models.File.objects.all()
+        # No suspicious analysis implemented yet
+        # queryset = self._filter_suspicious_files(queryset, request.user)
+        try:
+            file = queryset.get(pk=pk)
+        except models.File.DoesNotExist as exc:
+            logger.warning("File with ID '%s' does not exist", pk)
+            raise drf_exceptions.PermissionDenied() from exc
+
+        user_abilities = file.get_abilities(request.user)
+        if not user_abilities.get(self.action, False):
+            logger.warning(
+                "User '%s' lacks permission for file '%s'", request.user.id, pk
+            )
+            raise drf_exceptions.PermissionDenied()
+
+        logger.debug(
+            "Subrequest authorization successful. Extracted parameters: %s", url_params
+        )
+        return url_params, request.user.id, file
+
+    @decorators.action(detail=False, methods=["get"], url_path="media-auth")
+    @FeatureFlag.require("file_upload")
+    def media_auth(self, request, *args, **kwargs):
+        """
+        This view is used by an Nginx subrequest to control access to an file's
+        attachment file.
+
+        When we let the request go through, we compute authorization headers that will be added to
+        the request going through thanks to the nginx.ingress.kubernetes.io/auth-response-headers
+        annotation. The request will then be proxied to the object storage backend who will
+        respond with the file after checking the signature included in headers.
+        """
+        url_params, _, file = self._authorize_subrequest(
+            request, MEDIA_STORAGE_URL_PATTERN
+        )
+
+        if not file.is_ready:
+            logger.warning("File '%s' is not ready", file.id)
+            raise drf_exceptions.PermissionDenied()
+
+        # Generate S3 authorization headers using the extracted URL parameters
+        request = utils.generate_s3_authorization_headers(f"{url_params.get('key'):s}")
+
+        return drf_response.Response("authorized", headers=request.headers, status=200)
+
+
+class DiagnosticsViewSet(viewsets.ViewSet):
+    """Endpoints helping users and support diagnose connectivity issues.
+
+    Diagnostics are grouped behind a single prefix so upcoming checks
+    (rtcstats collection, ICE candidate reports, etc.) can be added as new
+    actions rather than new top-level routes.
+
+    They are open to anonymous users: someone who cannot join a room is
+    exactly who needs to run a test, and they may well not be logged in.
+    Each action therefore carries its own throttle scope.
+    """
+
+    permission_classes = [drf_permissions.AllowAny]
+
+    @decorators.action(
+        detail=False,
+        methods=["POST"],
+        url_path="connection",
+        url_name="connection",
+        throttle_classes=[
+            throttling.ConnectionTestUserRateThrottle,
+            throttling.ConnectionTestAnonRateThrottle,
+        ],
+    )
+    @FeatureFlag.require("connection_test")
+    def connection(self, request):
+        """Return a short-lived LiveKit token for an ephemeral test room.
+
+        Going through the room API is not an option here: it is tied to
+        registered meetings, lobby rules and longer-lived tokens. Each call
+        gets its own room so two people testing at the same time never meet.
+        """
+        room = f"{settings.CONNECTION_TEST_ROOM_PREFIX}-{uuid4()}"
+        expires_in = settings.CONNECTION_TEST_TOKEN_TTL_SECONDS
+
+        # LiveKit refreshes tokens for connected clients, so JWT TTL alone does not
+        # eject someone who stays connected. Schedule a hard DeleteRoom when Celery
+        # is available.
+        if settings.CELERY_ENABLED:
+            max_age = (
+                settings.CONNECTION_TEST_TOKEN_TTL_SECONDS
+                + settings.CONNECTION_TEST_ROOM_EXTRA_AGE_SECONDS
+            )
+            delete_connection_test_room.apply_async(
+                args=[room],
+                countdown=max_age,
+            )
+
+        return drf_response.Response(
+            {
+                "livekit": {
+                    "url": settings.LIVEKIT_CONFIGURATION["url"],
+                    "room": room,
+                    "token": generate_token(
+                        room=room,
+                        user=request.user,
+                        username="Connection Test",
+                        ttl=timedelta(seconds=expires_in),
+                    ),
+                    "expires_in": expires_in,
+                },
+            }
+        )

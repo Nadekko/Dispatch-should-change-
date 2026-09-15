@@ -1,0 +1,63 @@
+{
+  "home": "Home",
+  "logout": "Log out",
+  "recordCta": "Start recording",
+  "recordPageH1": "New recording",
+  "images": {
+    "governmentLogoAlt": "French government logo",
+    "appLogoAlt": "Assistant Transcripts",
+    "assistantLogoAlt": "LaSuite Assistant logo",
+    "downloadIosAlt": "Download on the App Store",
+    "downloadAndroidAlt": "Download on Google Play",
+    "downloadIosAriaLabel": "Download the iOS app on the App Store (new window)",
+    "downloadAndroidAriaLabel": "Download the Android app on Google Play (new window)"
+  },
+  "breadcrumbs": {
+    "myRecordings": "My recordings",
+    "trash": "Trash"
+  },
+  "info": {
+    "supportEmailStart": "Hello, ...",
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "faqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/",
+    "mobileApp": {
+      "title": "Keep recording, anywhere",
+      "description": "With the mobile app, your recording continues even when your screen is locked.",
+      "scanToInstall": "Scan to install",
+      "catchPhrase": "Record your in-person meetings and automatically generates a structured report in Docs.",
+      "closePopupAriaLabel": "Close the mobile app download pop-up",
+      "openInTheAppStoreTitle": "Open in the App Store (new window)",
+      "openInThePlayStoreTitle": "Open in the Play Store (new window)",
+      "scanQRCodeAriaLabel": "QR code to scan to install the mobile app"
+    },
+    "help": {
+      "asideAriaLabel": "Help & Resources",
+      "ariaLabel": "Help & Resources",
+      "documentation": "Documentation",
+      "support": "Support",
+      "mobileApp": "Mobile app",
+      "legalInfo": "Legal information"
+    }
+  },
+  "legal": {
+    "legalTerms": "Legal terms",
+    "legalTermsUrl": "/legal-terms",
+    "termsOfService": "Terms of service",
+    "termsOfServiceUrl": "/terms-of-service",
+    "personalData": "Personal data",
+    "personalDataUrl": "/personal-data",
+    "accessibility": "Accessibility : not compliant",
+    "accessibilityUrl": "/accessibility",
+    "serviceProvisionAgreement": "Service provision agreement",
+    "serviceProvisionAgreementUrl": "/service-provision-agreement"
+  },
+  "pageTitles": {
+    "downloadMobileApp": "Download mobile app",
+    "home": "Home",
+    "deletedRecordings": "Deleted recordings",
+    "record": "New recording",
+    "recordings": "My recordings",
+    "loading": "Loading...",
+    "recordingNotFound": "Recording not found"
+  }
+}

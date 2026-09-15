@@ -1,0 +1,62 @@
+{
+  "backToHome": "Zurück zur Startseite",
+  "cancel": "Abbrechen",
+  "closeDialog": "Dialogfenster schließen",
+  "error": {
+    "heading": "Beim Laden der Seite ist ein Fehler aufgetreten"
+  },
+  "feedback": {
+    "context": "Dein Feedback gestaltet das Produkt!",
+    "cta": "Teile uns deine Meinung mit – neuer Tab"
+  },
+  "forbidden": {
+    "heading": "Zugriff verweigert"
+  },
+  "loading": "Ladevorgang…",
+  "loggedInUserTooltip": "Angemeldet als…",
+  "login": {
+    "buttonLabel": "Anmelden",
+    "proconnectButtonLabel": "Mit ProConnect anmelden",
+    "proconnectLinkLabel": "Was ist ProConnect? – neuer Tab",
+    "proconnectLink": "Was ist ProConnect?"
+  },
+  "logout": "Abmelden",
+  "notFound": {
+    "heading": "Überprüfe deinen Meeting-Code",
+    "body": "Stelle sicher, dass du den richtigen Meeting-Code in der URL eingegeben haben. Beispiel:"
+  },
+  "selected": "ausgewählt",
+  "submit": "OK",
+  "footer": {
+    "links": {
+      "legifrance": "legifrance.gouv.fr",
+      "infogouv": "info.gouv.fr",
+      "servicepublic": "service-public.fr",
+      "datagouv": "data.gouv.fr",
+      "legalsTerms": "Rechtliche Hinweise",
+      "data": "Datenschutz und Cookies",
+      "accessibility": "Barrierefreiheit: nicht konform",
+      "connectionTest": "Testen Sie Ihre Konfiguration",
+      "ariaLabel": "neues Fenster",
+      "codeAnnotation": "Unser Code ist offen und verfügbar in diesem",
+      "code": "Open-Source-Repository",
+      "technicalDetails": "Technische Angaben",
+      "termsOfService": "Nutzungsbedingungen"
+    },
+    "mentions": "Sofern nicht anders angegeben, sind die Inhalte dieser Website verfügbar unter der",
+    "license": "Etalab 2.0 Lizenz"
+  },
+  "loginHint": {
+    "title": "Melde dich mit deinem Konto an",
+    "body": "Melde dich mit deinem Konto an, statt zu warten.",
+    "button": {
+      "ariaLabel": "Hinweis schließen",
+      "label": "OK"
+    }
+  },
+  "skipLink": "Zum Hauptinhalt springen",
+  "clipboardContent": {
+    "url": "Um an der Videokonferenz teilzunehmen, folge diesem Link: {{roomUrl}}",
+    "numberAndPin": "Um per Telefon teilzunehmen, wähle {{phoneNumber}} und gib diesen Code ein: {{pinCode}}"
+  }
+}

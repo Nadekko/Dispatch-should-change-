@@ -1,0 +1,33 @@
+{
+  "cta": "Transférer des enregistrements",
+  "title": "Transfert de fichiers audio",
+  "duration": "Durée : {{duration, formatDuration}}",
+  "maxDuration": "Durée maximale : {{maxDuration, formatDuration}}",
+  "maxFileSize": "Taille maximale : {{value}}",
+  "dragAndDropLabel": "Déposez vos fichiers audio ici, ou cliquez pour sélectionner des fichiers.",
+  "removeFileTooltip": "Retirer le fichier",
+  "uploadFilesCta": "Transférer les fichiers",
+  "errors": {
+    "unsupportedMimeType": "Fichier non supporté : {{mimeType}}",
+    "unsupportedExtension": "Extension non supportée : {{extension}}",
+    "tooLarge": "Taille maximale dépassée : {{value}}",
+    "tooLong": "La durée audio ({{duration, formatDuration}}) dépasse la limite ({{maxDuration, formatDuration}}).",
+    "unrecognizedAudio": "Fichier audio non reconnu, il est peut-être corrompu. Vous pouvez essayer de le convertir en ogg d'abord (avec ffmpeg par exemple).",
+    "uploadFailed": "Le transfert a échoué"
+  },
+  "uploader": {
+    "toast": "Déposez vos fichiers ici pour les transférer",
+    "steps": {
+      "preparing": "Préparation du transfert...",
+      "none": "Aucun fichier sélectionné pour le transfert",
+      "upload_files": "Transferts en cours",
+      "done": "Terminé"
+    },
+    "files": {
+      "description_one": "{{count}} fichier en cours de transfert",
+      "description_other": "{{count}} fichiers en cours de transfert",
+      "description_done_one": "{{count}} fichier transféré",
+      "description_done_other": "{{count}} fichiers transférés"
+    }
+  }
+}

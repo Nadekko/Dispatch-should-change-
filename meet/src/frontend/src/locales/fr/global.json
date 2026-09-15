@@ -1,0 +1,62 @@
+{
+  "backToHome": "Retour à l'accueil",
+  "cancel": "Annuler",
+  "closeDialog": "Fermer la fenêtre modale",
+  "error": {
+    "heading": "Une erreur est survenue lors du chargement de la page"
+  },
+  "feedback": {
+    "context": "Vos retours sont essentiels !",
+    "cta": "Partagez votre avis - nouvelle fenêtre"
+  },
+  "forbidden": {
+    "heading": "Accès interdit"
+  },
+  "loading": "Chargement…",
+  "loggedInUserTooltip": "Connecté en tant que ",
+  "login": {
+    "buttonLabel": "Se connecter",
+    "proconnectButtonLabel": "S'identifier avec ProConnect",
+    "proconnectLinkLabel": "Qu'est-ce que ProConnect ? - nouvelle fenêtre",
+    "proconnectLink": "Qu'est-ce que ProConnect ?"
+  },
+  "logout": "Se déconnecter",
+  "notFound": {
+    "heading": "Vérifier votre code de réunion",
+    "body": "Vérifiez que vous avez saisi le code de réunion correct dans l'URL. Exemple :"
+  },
+  "selected": "sélectionné",
+  "submit": "OK",
+  "footer": {
+    "links": {
+      "legifrance": "legifrance.gouv.fr",
+      "infogouv": "info.gouv.fr",
+      "servicepublic": "service-public.fr",
+      "datagouv": "data.gouv.fr",
+      "legalsTerms": "Mentions légales",
+      "data": "Données personnelles et cookie",
+      "accessibility": "Accessibilité : non conforme",
+      "connectionTest": "Tester votre configuration",
+      "ariaLabel": "nouvelle fenêtre",
+      "codeAnnotation": "Notre code est ouvert et disponible sur ce",
+      "code": "dépôt de code Open Source",
+      "technicalDetails": "Fiche Technique",
+      "termsOfService": "Conditions d'utilisation"
+    },
+    "mentions": "Sauf mention contraire, les contenus de ce site sont disponibles sous",
+    "license": "licence etalab 2.0"
+  },
+  "loginHint": {
+    "title": "Connectez-vous avec votre compte",
+    "body": "Au lieu de patienter, connectez-vous avec votre compte.",
+    "button": {
+      "ariaLabel": "Fermer la suggestion",
+      "label": "OK"
+    }
+  },
+  "skipLink": "Aller au contenu principal",
+  "clipboardContent": {
+    "url": "Pour participer à la visioconférence, cliquez sur ce lien : {{roomUrl}}",
+    "numberAndPin": "Pour participer par téléphone, composez le {{phoneNumber}} et saisissez ce code : {{pinCode}}"
+  }
+}

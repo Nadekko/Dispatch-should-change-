@@ -1,0 +1,33 @@
+{
+  "cta": "Transfer recordings",
+  "title": "Transfer recordings",
+  "duration": "Duration: {{duration, formatDuration}}",
+  "maxDuration": "Max duration: {{maxDuration, formatDuration}}",
+  "maxFileSize": "Max file size: {{value}}",
+  "dragAndDropLabel": "Drag and drop audio files here, or click to select files.",
+  "removeFileTooltip": "Remove file from upload process",
+  "uploadFilesCta": "Upload files",
+  "errors": {
+    "unsupportedMimeType": "Unsupported file type: {{mimeType}}",
+    "unsupportedExtension": "Unsupported file extension: {{extension}}",
+    "tooLarge": "File size exceeds limit: {{value}}",
+    "tooLong": "Audio duration ({{duration, formatDuration}}) exceeds limit ({{maxDuration, formatDuration}}).",
+    "unrecognizedAudio": "Audio file not recognized, it might be corrupted. You can try to convert it to ogg first (with ffmpeg for instance).",
+    "uploadFailed": "Upload failed"
+  },
+  "uploader": {
+    "toast": "Drop your files here to transfer them",
+    "steps": {
+      "preparing": "Preparing the transfer...",
+      "none": "No files selected for transfer",
+      "upload_files": "Uploading files",
+      "done": "Done"
+    },
+    "files": {
+      "description_one": "{{count}} file being transferred",
+      "description_other": "{{count}} files being transferred",
+      "description_done_one": "{{count}} file transferred",
+      "description_done_other": "{{count}} files transferred"
+    }
+  }
+}

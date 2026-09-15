@@ -1,0 +1,18 @@
+import { fetchApi } from '@/api/fetchApi'
+import type { ApiRoom } from '@/features/rooms/api/ApiRoom'
+import type { RecordingMode, RecordingStatus } from '@/features/recording'
+
+export type RecordingApi = {
+  id: string
+  room: Pick<ApiRoom, 'id' | 'name' | 'slug' | 'access_level'>
+  created_at: string
+  key: string
+  mode: RecordingMode
+  status: RecordingStatus
+  is_expired: boolean
+  expired_at: string
+}
+
+export const fetchRecording = ({ recordingId }: { recordingId?: string }) => {
+  return fetchApi<RecordingApi>(`/recordings/${recordingId}/`)
+}

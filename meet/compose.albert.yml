@@ -1,0 +1,11 @@
+services:
+  minio:
+    image: quay.io/minio/minio
+  createbuckets:
+    image: quay.io/minio/mc
+  celery-summary-webhook:
+    build: { context: ./src/summary, dockerfile: Dockerfile, target: production }
+    command: celery -A summary.core.celery_worker worker --pool=solo -l info -Q call-webhook-queue-v2
+    env_file: [env.d/development/summary]
+    volumes: ["./src/summary:/app"]
+    depends_on: [redis-summary, minio]

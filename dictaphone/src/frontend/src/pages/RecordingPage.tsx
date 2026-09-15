@@ -1,0 +1,342 @@
+import ConnectedLayout from '@/layout/ConnectedLayout.tsx'
+import { useGetFile } from '@/features/files/api/getFile.ts'
+import {
+  AudioPlayer,
+  AudioPlayerHandle,
+} from '@/features/ui/preview/audio-player/AudioPlayer.tsx'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { Transcript } from '@/features/recordings/components/Transcript.tsx'
+import { getMainAiJobs } from '@/features/ai-jobs/utils/getMainAiJobs.ts'
+import { Badge, Spinner, useResponsive } from '@gouvfr-lasuite/ui-kit'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Calendar2,
+  Clock,
+  ClockArrowCirclepath,
+  Copy,
+} from '@gouvfr-lasuite/ui-kit/icons'
+import { useTranslation } from 'react-i18next'
+import { FileActionMenu } from '@/features/recordings/components/FileActionMenu.tsx'
+import {
+  Button,
+  Modal,
+  ModalSize,
+  Tooltip,
+} from '@gouvfr-lasuite/cunningham-react'
+import { ApiAiJob } from '@/features/ai-jobs/api/types.ts'
+import {
+  useCreateInDocsMutation,
+  useOpenInDocsMutation,
+} from '@/features/ai-jobs/api/fetch.ts'
+import { useLocation } from 'wouter'
+import { intervalToDuration } from 'date-fns'
+import {
+  buildTranscriptMarkdown,
+  TranscriptViewSegment,
+} from '@/features/ai-jobs/utils/transcript.ts'
+import {
+  addToast,
+  ToasterItem,
+} from '@/features/ui/components/toaster/Toaster.tsx'
+import { useConfig } from '@/api/useConfig'
+
+function OpenInDocsButton({
+  lastAiJobTranscript,
+  supportsSynchronousDocsCreation,
+}: {
+  lastAiJobTranscript: ApiAiJob | null
+  supportsSynchronousDocsCreation: boolean
+}) {
+  const { t } = useTranslation('recordings')
+  const openInDocs = useOpenInDocsMutation()
+  const createInDocs = useCreateInDocsMutation()
+
+  const showCreateDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.createInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+  const showOpenDocsError = useCallback(
+    () =>
+      addToast(
+        <ToasterItem type="error">
+          <span>{t('transcript.openInDocsError')}</span>
+        </ToasterItem>
+      ),
+    [t]
+  )
+
+  const handleOpenInDocs = useCallback(() => {
+    if (!lastAiJobTranscript?.id || lastAiJobTranscript.status !== 'success') {
+      return
+    }
+
+    if (lastAiJobTranscript.docs_app_id) {
+      openInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showOpenDocsError,
+      })
+      return
+    }
+
+    if (supportsSynchronousDocsCreation) {
+      createInDocs.mutate(lastAiJobTranscript, {
+        onSuccess: (res) => window.open(res.doc_url, '_blank'),
+        onError: showCreateDocsError,
+      })
+    }
+  }, [
+    createInDocs,
+    lastAiJobTranscript,
+    openInDocs,
+    showCreateDocsError,
+    showOpenDocsError,
+    supportsSynchronousDocsCreation,
+  ])
+  const { isMobile } = useResponsive()
+  const isDocsActionPending = openInDocs.isPending || createInDocs.isPending
+  const canOpenInDocs =
+    lastAiJobTranscript?.status === 'success' &&
+    (Boolean(lastAiJobTranscript.docs_app_id) ||
+      supportsSynchronousDocsCreation)
+
+  return (
+    <>
+      <Button
+        onClick={handleOpenInDocs}
+        size="small"
+        variant="secondary"
+        disabled={isDocsActionPending || !canOpenInDocs}
+        aria-label={t('transcript.openInDocsCta')}
+        icon={<ArrowUpRight />}
+        children={!isMobile ? t('transcript.openInDocsCta') : undefined}
+      />
+      <Modal
+        size={ModalSize.SMALL}
+        isOpen={createInDocs.isPending}
+        onClose={() => undefined}
+        preventClose={true}
+        closeOnEsc={false}
+        closeOnClickOutside={false}
+        title={t('createInDocsModal.title')}
+        hideCloseButton={true}
+      >
+        <Spinner />
+        <p>{t('createInDocsModal.description')}</p>
+      </Modal>
+    </>
+  )
+}
+
+export default function RecordingPage({
+  recordingId,
+}: {
+  recordingId: string
+}) {
+  const { t } = useTranslation(['recordings', 'shared', 'layout'])
+  const [, navigate] = useLocation()
+  const playerRef = useRef<AudioPlayerHandle>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [transcriptSegments, setTranscriptSegments] = useState<
+    TranscriptViewSegment[]
+  >([])
+
+  const recordingQ = useGetFile(recordingId)
+  const recording = recordingQ.data
+  const { data } = useConfig()
+
+  const { lastAiJobTranscript } = useMemo(
+    () => getMainAiJobs(recordingQ.data?.ai_jobs),
+    [recordingQ.data?.ai_jobs]
+  )
+
+  const seekTo = useCallback((seconds: number) => {
+    playerRef.current?.seekTo(seconds)
+    setCurrentTime(seconds)
+  }, [])
+  const { isMobile } = useResponsive()
+
+  const transcriptMarkdown = useMemo(() => {
+    if (!recording) return null
+    return buildTranscriptMarkdown({
+      title: recording.title,
+      transcriptSegments,
+      speakerLabel: t('transcript.speaker'),
+    })
+  }, [recording, transcriptSegments, t])
+  const handleCopy = useCallback(() => {
+    navigator.clipboard
+      .writeText(transcriptMarkdown!)
+      .then(() => {
+        addToast(
+          <ToasterItem type="info">{t('transcript.copySuccess')}</ToasterItem>
+        )
+      })
+      .catch(() => {
+        addToast(
+          <ToasterItem type="error">{t('transcript.copyError')}</ToasterItem>
+        )
+      })
+  }, [t, transcriptMarkdown])
+
+  if (recordingQ.isPending) {
+    return (
+      <ConnectedLayout pageTitle={t('layout:pageTitles.loading')}>
+        <div />
+      </ConnectedLayout>
+    )
+  }
+
+  if (!recording || recording.deleted_at !== null) {
+    return (
+      <ConnectedLayout pageTitle={t('layout:pageTitles.recordingNotFound')}>
+        <div className="recording-page__not-found">
+          <span className="material-icons" aria-hidden="true">
+            search_off
+          </span>
+          {t('notFound')}
+        </div>
+      </ConnectedLayout>
+    )
+  }
+
+  return (
+    <ConnectedLayout pageTitle={recording.title}>
+      <div className="recording-page">
+        <div className="recording-page__header">
+          <div className="recording-page__actions-buttons">
+            <Button
+              aria-label={t('shared:actions.back')}
+              variant="bordered"
+              icon={<ArrowLeft />}
+              size="small"
+              onClick={() => navigate('/recordings')}
+            >
+              {t('shared:actions.back')}
+            </Button>
+
+            <div className="recording-page__actions-buttons__right">
+              {!isMobile && (
+                <>
+                  <Button
+                    aria-label={t('shared:actions.copyText')}
+                    size="small"
+                    variant="tertiary"
+                    color="neutral"
+                    icon={<Copy />}
+                    disabled={
+                      lastAiJobTranscript?.status !== 'success' ||
+                      !transcriptMarkdown
+                    }
+                    children={t('shared:actions.copyText')}
+                    onClick={handleCopy}
+                  />
+                  <OpenInDocsButton
+                    lastAiJobTranscript={lastAiJobTranscript}
+                    supportsSynchronousDocsCreation={
+                      data?.docs_integration_supports_synchroneous_calls ??
+                      false
+                    }
+                  />
+                </>
+              )}
+
+              <FileActionMenu
+                file={recording}
+                largeTrigger={isMobile}
+                showCopyText={isMobile}
+                showOpenInDocs={isMobile}
+              />
+            </div>
+          </div>
+          <div className="recording-page__main-content__metadata">
+            <h1 className="recording-page__title">{recording.title}</h1>
+            <div
+              className="recording-page__metadata"
+              aria-label={t('metadata.ariaLabel')}
+            >
+              <p className="recording-page__metadata__item">
+                <Calendar2
+                  className="recording-page__metadata__item__icon"
+                  aria-hidden="true"
+                />
+                <span>
+                  {t('shared:utils.formatDate', {
+                    value: recording.created_at,
+                  })}
+                </span>
+              </p>
+              <p className="recording-page__metadata__item">
+                <Clock
+                  className="recording-page__metadata__item__icon"
+                  aria-hidden="true"
+                />
+                <span>
+                  {t('shared:utils.duration', {
+                    duration: intervalToDuration({
+                      start: 0,
+                      end: Math.max(recording.duration_seconds || 1, 1) * 1000,
+                    }),
+                  })}
+                </span>
+              </p>
+              <Tooltip
+                content={t('metadata.dataPolicyTooltip', {
+                  originalDataKeptFor:
+                    data?.data_policy?.original_file_data_delete_after_days,
+                  transcriptDataKeptFor:
+                    data?.data_policy?.file_auto_hard_delete_after_days,
+                })}
+              >
+                <p className="recording-page__metadata__item warning">
+                  <ClockArrowCirclepath
+                    className="recording-page__metadata__item__icon"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {recording.lifecycle_state === 'active'
+                      ? t('metadata.audioKeptUntil', {
+                          value: recording.original_file_file_delete_at,
+                        })
+                      : t('metadata.fileKeptUntil', {
+                          value: recording.will_auto_delete_at,
+                        })}
+                  </span>
+                </p>
+              </Tooltip>
+            </div>
+          </div>
+          {recording.lifecycle_state === 'active' && (
+            <AudioPlayer
+              src={recording.url!}
+              ref={playerRef}
+              title={recording.title}
+              onTimeUpdate={setCurrentTime}
+              durationSecondsEstimate={recording.duration_seconds}
+              extraTitle={
+                recording.deleted_at ? (
+                  <Badge type="warning">{t('deleted')}</Badge>
+                ) : undefined
+              }
+            />
+          )}
+        </div>
+        <div className="recording-page__main-content">
+          <Transcript
+            lastAiJobTranscript={lastAiJobTranscript}
+            hasAiJobs={recording.ai_jobs.length > 0}
+            audioExtractionState={recording.audio_extraction_state}
+            seekTo={seekTo}
+            currentTime={currentTime}
+            setTranscriptSegments={setTranscriptSegments}
+          />
+        </div>
+      </div>
+    </ConnectedLayout>
+  )
+}

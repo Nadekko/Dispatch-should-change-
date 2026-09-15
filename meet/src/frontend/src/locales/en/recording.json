@@ -1,0 +1,28 @@
+{
+  "error": {
+    "title": "Recording unavailable",
+    "body": "The recording is unavailable or may have been deleted. Only the meeting host can access it. Feel free to contact them if needed."
+  },
+  "expired": {
+    "title": "Recording expired",
+    "body": "This recording was deleted on {{date}}."
+  },
+  "authentication": {
+    "title": "Authentication required",
+    "body": "Please log in to access this recording."
+  },
+  "unsaved": {
+    "title": "Download Unavailable",
+    "body": "This recording is not ready for download yet. Please try again later."
+  },
+  "success": {
+    "title": "Your recording is ready!",
+    "body": "Recording of the meeting {{room}} from {{created_at}}.",
+    "expiration": "Attention, this recording will expire after {{expiration_days}} day(s).",
+    "button": "Download",
+    "warning": {
+      "title": "Link sharing disabled",
+      "body": "Sharing the recording via link is not yet available. Only hosts can download it."
+    }
+  }
+}

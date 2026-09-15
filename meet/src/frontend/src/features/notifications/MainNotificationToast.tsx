@@ -1,0 +1,272 @@
+import { useCallback, useEffect } from 'react'
+import { useRoomContext } from '@livekit/components-react'
+import { Participant, RemoteParticipant, RoomEvent } from 'livekit-client'
+import { type ChatMessage, isMobileBrowser } from '@livekit/components-core'
+import { useTranslation } from 'react-i18next'
+import { NotificationType } from './NotificationType'
+import { NotificationDuration } from './NotificationDuration'
+import { decodeNotificationDataReceived } from './utils'
+import { useNotificationSound } from '@/features/notifications/hooks/useSoundNotification'
+import { toastQueue } from './components/ToastProvider'
+import { layoutStore } from '@/stores/layout'
+import { PanelId } from '@/features/rooms/livekit/hooks/useSidePanel'
+import { useScreenReaderAnnounce } from '@/hooks/useScreenReaderAnnounce'
+import { Emoji } from '@/features/reactions/types'
+import { useReactions } from '@/features/reactions/hooks/useReactions'
+import { NotificationProvider } from './NotificationProvider'
+import { useConfig } from '@/api/useConfig'
+
+export const MainNotificationToast = () => {
+  const room = useRoomContext()
+  const { data } = useConfig()
+  const { triggerNotificationSound } = useNotificationSound()
+  const { t } = useTranslation('notifications')
+  const announce = useScreenReaderAnnounce()
+
+  const { appendReaction } = useReactions()
+
+  useEffect(() => {
+    const handleChatMessage = (
+      chatMessage: ChatMessage,
+      participant?: Participant | undefined
+    ) => {
+      if (!participant || participant.isLocal) return
+      triggerNotificationSound(NotificationType.MessageReceived)
+      toastQueue.add(
+        {
+          participant: participant,
+          message: chatMessage.message,
+          type: NotificationType.MessageReceived,
+        },
+        { timeout: NotificationDuration.MESSAGE }
+      )
+      if (layoutStore.activePanelId !== PanelId.CHAT) {
+        announce(
+          t('chatMessageReceived', {
+            name: participant.name || t('defaultName'),
+            message: chatMessage.message,
+          }),
+          'polite'
+        )
+      }
+    }
+    room.on(RoomEvent.ChatMessage, handleChatMessage)
+    return () => {
+      room.off(RoomEvent.ChatMessage, handleChatMessage)
+    }
+  }, [room, triggerNotificationSound, announce, t])
+
+  const handleEmoji = useCallback(
+    (emoji: string, participant: Participant) => {
+      if (!emoji || !Object.values(Emoji).includes(emoji as Emoji)) return
+      appendReaction(emoji as Emoji, participant)
+    },
+    [appendReaction]
+  )
+
+  useEffect(() => {
+    const handleDataReceived = (
+      payload: Uint8Array,
+      participant?: RemoteParticipant
+    ) => {
+      const notification = decodeNotificationDataReceived(payload)
+
+      if (!notification) return
+
+      switch (notification.type) {
+        case NotificationType.ParticipantMuted:
+          if (participant) {
+            toastQueue.add(
+              {
+                participant,
+                type: NotificationType.ParticipantMuted,
+              },
+              { timeout: NotificationDuration.ALERT }
+            )
+          }
+
+          break
+        case NotificationType.ReactionReceived:
+          if (notification.data?.emoji && participant)
+            handleEmoji(notification.data.emoji, participant)
+          break
+        case NotificationType.TranscriptionStarted:
+        case NotificationType.TranscriptionStopped:
+        case NotificationType.ScreenRecordingStarted:
+        case NotificationType.ScreenRecordingStopped:
+        case NotificationType.TranscriptionLimitReached:
+        case NotificationType.ScreenRecordingLimitReached:
+          toastQueue.add(
+            {
+              participant,
+              type: notification.type,
+            },
+            { timeout: NotificationDuration.ALERT }
+          )
+          break
+        case NotificationType.TranscriptionRequested:
+        case NotificationType.ScreenRecordingRequested:
+          toastQueue.add(
+            {
+              participant,
+              type: notification.type,
+            },
+            { timeout: NotificationDuration.RECORDING_REQUESTED }
+          )
+          break
+        case NotificationType.PermissionsRemoved: {
+          const removedSources = notification?.data?.removedSources
+          if (!removedSources?.length) break
+          toastQueue.add(
+            {
+              participant,
+              type: notification.type,
+              removedSources: removedSources,
+            },
+            { timeout: NotificationDuration.ALERT }
+          )
+          break
+        }
+        default:
+          return
+      }
+    }
+    room.on(RoomEvent.DataReceived, handleDataReceived)
+    return () => {
+      room.off(RoomEvent.DataReceived, handleDataReceived)
+    }
+  }, [room, handleEmoji])
+
+  const triggerNotificationSoundIfRoomIsSmall = useCallback(
+    (type: NotificationType) => {
+      if (!data) return
+      if (room.numParticipants >= data.max_participants_for_sound) return
+      triggerNotificationSound(type)
+    },
+    [room, data, triggerNotificationSound]
+  )
+
+  useEffect(() => {
+    const showJoinNotification = (participant: Participant) => {
+      if (isMobileBrowser()) {
+        return
+      }
+      triggerNotificationSoundIfRoomIsSmall(NotificationType.ParticipantJoined)
+      toastQueue.add(
+        {
+          participant,
+          type: NotificationType.ParticipantJoined,
+        },
+        {
+          timeout: NotificationDuration.PARTICIPANT_JOINED,
+        }
+      )
+    }
+    room.on(RoomEvent.ParticipantConnected, showJoinNotification)
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, showJoinNotification)
+    }
+  }, [room, triggerNotificationSoundIfRoomIsSmall])
+
+  useEffect(() => {
+    const handleAttributeChanged = (
+      changedAttributes: Record<string, string>,
+      participant: Participant
+    ) => {
+      if (!participant.isLocal || !('room_role' in changedAttributes)) return
+      const newRole = changedAttributes['room_role']
+      toastQueue.add(
+        {
+          participant,
+          type: NotificationType.RoleChanged,
+          newRole: newRole,
+        },
+        {
+          timeout: NotificationDuration.ROLE_CHANGED,
+        }
+      )
+    }
+    room.on(RoomEvent.ParticipantAttributesChanged, handleAttributeChanged)
+
+    return () => {
+      room.off(RoomEvent.ParticipantAttributesChanged, handleAttributeChanged)
+    }
+  }, [room])
+
+  useEffect(() => {
+    const removeParticipantNotifications = (participant: Participant) => {
+      toastQueue.visibleToasts.forEach((toast) => {
+        if (toast.content.participant === participant) {
+          toastQueue.close(toast.key)
+        }
+      })
+    }
+    room.on(RoomEvent.ParticipantDisconnected, removeParticipantNotifications)
+    return () => {
+      room.off(
+        RoomEvent.ParticipantDisconnected,
+        removeParticipantNotifications
+      )
+    }
+  }, [room])
+
+  useEffect(() => {
+    const handleNotificationReceived = (
+      changedAttributes: Record<string, string>,
+      participant: Participant
+    ) => {
+      if (!participant) return
+      if (isMobileBrowser()) return
+      if (participant.isLocal) return
+
+      if (!('handRaisedAt' in changedAttributes)) return
+
+      const existingToast = toastQueue.visibleToasts.find(
+        (toast) =>
+          toast.content.participant === participant &&
+          toast.content.type === NotificationType.HandRaised
+      )
+
+      if (existingToast && !changedAttributes?.handRaisedAt) {
+        toastQueue.close(existingToast.key)
+        return
+      }
+
+      if (!existingToast && !!changedAttributes?.handRaisedAt) {
+        triggerNotificationSound(NotificationType.HandRaised)
+        toastQueue.add(
+          {
+            participant,
+            type: NotificationType.HandRaised,
+          },
+          { timeout: NotificationDuration.HAND_RAISED }
+        )
+      }
+    }
+
+    room.on(RoomEvent.ParticipantAttributesChanged, handleNotificationReceived)
+
+    return () => {
+      room.off(
+        RoomEvent.ParticipantAttributesChanged,
+        handleNotificationReceived
+      )
+    }
+  }, [room, triggerNotificationSound])
+
+  useEffect(() => {
+    const closeAllToasts = () => {
+      toastQueue.visibleToasts.forEach(({ key }) => toastQueue.close(key))
+    }
+    room.on(RoomEvent.Disconnected, closeAllToasts)
+    return () => {
+      room.off(RoomEvent.Disconnected, closeAllToasts)
+    }
+  }, [room])
+
+  // Without this line, when the component first renders,
+  // the 'notifications' namespace might not be loaded yet
+  useTranslation(['notifications'])
+
+  return <NotificationProvider />
+}

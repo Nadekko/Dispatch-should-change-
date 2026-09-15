@@ -1,0 +1,18 @@
+{
+  "title": "Your meetings, automatically transcribed.",
+  "subtitle": "Transcripts records your in-person meetings and automatically generates a structured report in Docs, with AI transcription.",
+  "login": "Log in",
+  "license": "Unless otherwise stated, all content on this site is under",
+  "introLasuiteAssistant": "Transcripts is part of LaSuite Assistant, the AI app of LaSuite.",
+  "discoverAssistant": "Discover AI Assistant",
+  "discoverAssistantAriaLabel": "Discover AI Assistant (new window)",
+  "discoverLaSuite": "Discover LaSuite",
+  "discoverLaSuiteAriaLabel": "Discover LaSuite (new window)",
+  "images": {
+    "appLogoAlt": "Assistant Transcripts",
+    "heroAlt": "Illustration of Assistant Transcripts",
+    "example1Alt": "Assistant Transcripts mobile app example 1",
+    "example2Alt": "Assistant Transcripts mobile app example 2",
+    "example3Alt": "Assistant Transcripts mobile app example 3"
+  }
+}

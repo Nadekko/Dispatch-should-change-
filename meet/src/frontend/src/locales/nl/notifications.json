@@ -1,0 +1,66 @@
+{
+  "defaultName": "Een deelnemer",
+  "joined": {
+    "description": "{{name}} is in de ruimte gekomen"
+  },
+  "raised": {
+    "description": "{{name}} heeft een hand opgestoken.",
+    "cta": "Open wachtlijst"
+  },
+  "muted": "{{name}} heeft uw microfoon gedempt. Deelnemers kunnen u niet horen.",
+  "openChat": "Open chat",
+  "chatMessageReceived": "{{name}} zegt: {{message}}",
+  "lowerHand": {
+    "auto": "Het lijkt erop dat u bent begonnen te spreken, dus we laten uw hand zakken.",
+    "dismiss": "Houdt uw hand opgestoken"
+  },
+  "autoMuteLargeRoom": {
+    "auto": "U bent zojuist lid geworden van een grote vergadering. Uw microfoon is automatisch gedempt.",
+    "dismiss": "Microfoon inschakelen"
+  },
+  "reaction": {
+    "description": "{{name}} reageerde met {{emoji}}"
+  },
+  "permissionsRemoved": {
+    "camera": "De organisator heeft de video voor alle deelnemers uitgeschakeld.",
+    "microphone": "De organisator heeft de microfoon voor alle deelnemers uitgeschakeld.",
+    "screen_share": "De organisator heeft het schermdelen voor alle deelnemers uitgeschakeld."
+  },
+  "waitingParticipants": {
+    "one": "Eén persoon wil deelnemen aan dit gesprek.",
+    "several": "Meerdere mensen willen deelnemen aan dit gesprek.",
+    "open": "Openen",
+    "accept": "Accepteren"
+  },
+  "transcript": {
+    "started": "{{name}} is de transcriptie van de vergadering gestart.",
+    "stopped": "{{name}} heeft de transcriptie van de vergadering gestopt.",
+    "limitReached": "De transcriptie heeft de maximaal toegestane duur overschreden en wordt automatisch opgeslagen.",
+    "requested": "{{name}} wil graag de transcriptie starten."
+  },
+  "screenRecording": {
+    "started": "{{name}} is begonnen met het opnemen van de vergadering.",
+    "stopped": "{{name}} is gestopt met het opnemen van de vergadering.",
+    "limitReached": "De opname heeft de maximaal toegestane duur overschreden en wordt automatisch opgeslagen.",
+    "requested": "{{name}} wil graag de opname starten."
+  },
+  "recordingSave": {
+    "transcript": {
+      "message": "We zijn uw opname aan het voltooien! U ontvangt een e-mail op <strong>{{email}}</strong> zodra de transcriptie klaar is.",
+      "default": "We zijn uw opname aan het voltooien! U ontvangt een e-mail zodra de transcriptie klaar is."
+    },
+    "screenRecording": {
+      "message": "We zijn uw opname aan het voltooien! U ontvangt een e-mail op <strong>{{email}}</strong> zodra deze klaar is.",
+      "default": "We zijn uw opname aan het voltooien! U ontvangt een e-mail zodra deze klaar is."
+    }
+  },
+  "roleChanged": {
+    "body": "Je rol is gewijzigd. Je bent nu {{role}}.",
+    "roles": {
+      "owner": "Host",
+      "administrator": "Co-host",
+      "member": "Lid"
+    }
+  },
+  "openMenu": "Menu openen"
+}

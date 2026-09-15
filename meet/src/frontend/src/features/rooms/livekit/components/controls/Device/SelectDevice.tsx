@@ -1,0 +1,161 @@
+import { useTranslation } from 'react-i18next'
+import { useMediaDeviceSelect } from '@livekit/components-react'
+import { useEffect, useMemo } from 'react'
+import { Select, SelectProps } from '@/primitives/Select'
+import type { Placement } from '@react-types/overlays'
+import { useCannotUseDevice } from '../../../hooks/useCannotUseDevice'
+import { useDeviceMissing } from '../../../hooks/useDeviceMissing'
+import { useDeviceIcons } from '@/features/rooms/livekit/hooks/useDeviceIcons'
+import type { LocalAudioTrack } from 'livekit-client'
+import { AudioLevelGauge } from './AudioLevelGauge'
+import { OutputSoundTester } from './OutputSoundTester'
+import { canTestAudioOutput } from '@/features/rooms/utils/canTestAudioOutput'
+
+type DeviceItems = Array<{ value: string; label: string }>
+
+type SelectDeviceContext = {
+  variant?: 'light' | 'dark'
+  placement?: Placement
+}
+
+type SelectDeviceProps = {
+  id?: string
+  onSubmit?: (id: string) => void
+  kind: MediaDeviceKind
+  context?: 'join' | 'room'
+  track?: LocalAudioTrack
+}
+
+type SelectDevicePermissionsProps<T> = SelectDeviceProps &
+  Pick<SelectProps<T>, 'placement' | 'variant' | 'iconComponent'>
+
+const SelectDevicePermissions = <T extends string | number>({
+  id,
+  kind,
+  onSubmit,
+  iconComponent,
+  track,
+  ...props
+}: SelectDevicePermissionsProps<T>) => {
+  const { t } = useTranslation('rooms', { keyPrefix: 'selectDevice' })
+
+  const { devices, activeDeviceId, setActiveMediaDevice } =
+    useMediaDeviceSelect({ kind: kind, requestPermissions: true })
+
+  const items: DeviceItems = devices
+    .filter((d) => !!d.deviceId)
+    .map((d) => ({
+      value: d.deviceId,
+      label: d.label,
+    }))
+
+  /**
+   * FALLBACK AUDIO OUTPUT DEVICE SELECTION
+   * Auto-selects the only available audio output device when currently on 'default'
+   */
+  useEffect(() => {
+    if (
+      kind !== 'audiooutput' ||
+      items.length !== 1 ||
+      items[0].value === 'default' ||
+      activeDeviceId !== 'default'
+    )
+      return
+    onSubmit?.(items[0].value)
+    setActiveMediaDevice(items[0].value)
+  }, [items, onSubmit, kind, setActiveMediaDevice, activeDeviceId])
+
+  const selectedKey = id || activeDeviceId
+
+  return (
+    <Select
+      aria-label={t(`${kind}.choose`)}
+      label=""
+      isDisabled={items.length === 0}
+      items={items}
+      iconComponent={iconComponent}
+      placeholder={items.length === 0 ? t('loading') : t('select')}
+      selectedKey={selectedKey}
+      onSelectionChange={async (key) => {
+        if (key === selectedKey) return
+        await setActiveMediaDevice(key as string)
+        onSubmit?.(key as string)
+      }}
+      menuFooter={
+        kind === 'audioinput' ? (
+          <AudioLevelGauge track={track} variant={props.variant} />
+        ) : kind === 'audiooutput' && canTestAudioOutput() ? (
+          <OutputSoundTester
+            sinkId={selectedKey as string}
+            variant={props.variant}
+          />
+        ) : undefined
+      }
+      {...props}
+    />
+  )
+}
+
+export const SelectDevice = ({
+  id,
+  onSubmit,
+  kind,
+  context = 'join',
+  track,
+}: SelectDeviceProps) => {
+  const { t } = useTranslation('rooms', { keyPrefix: 'selectDevice' })
+
+  const contextProps = useMemo<SelectDeviceContext>(() => {
+    if (context == 'room') {
+      return { variant: 'dark', placement: 'top' }
+    }
+    return {}
+  }, [context])
+
+  const deviceIcons = useDeviceIcons(kind)
+  const cannotUseDevice = useCannotUseDevice(kind)
+  const deviceMissing = useDeviceMissing(kind)
+
+  if (deviceMissing) {
+    return (
+      <Select
+        aria-label={t(`NotFound.title.${kind}`, {
+          keyPrefix: 'mediaErrorDialog',
+        })}
+        label=""
+        isDisabled={true}
+        items={[]}
+        placeholder={t(`NotFound.title.${kind}`, {
+          keyPrefix: 'mediaErrorDialog',
+        })}
+        iconComponent={deviceIcons.select}
+        {...contextProps}
+      />
+    )
+  }
+
+  if (cannotUseDevice) {
+    return (
+      <Select
+        aria-label={t(`${kind}.permissionsNeeded`)}
+        label=""
+        isDisabled={true}
+        items={[]}
+        placeholder={t('permissionsNeeded')}
+        iconComponent={deviceIcons.select}
+        {...contextProps}
+      />
+    )
+  }
+
+  return (
+    <SelectDevicePermissions
+      id={id}
+      onSubmit={onSubmit}
+      kind={kind}
+      track={track}
+      iconComponent={deviceIcons.select}
+      {...contextProps}
+    />
+  )
+}

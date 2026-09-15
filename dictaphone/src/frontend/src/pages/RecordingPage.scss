@@ -1,0 +1,102 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
+
+.recording-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: var(--c--globals--spacings--xl);
+
+  @media (max-width: $tablet) {
+  }
+
+  &__not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 4rem;
+    height: 100%;
+  }
+
+  &__header {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: var(--c--globals--spacings--xxs);
+  }
+
+  &__actions-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &__right {
+      display: flex;
+      gap: var(--c--globals--spacings--xxs);
+      align-items: center;
+    }
+  }
+
+  &__main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    &__metadata {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-left: 2px;
+    }
+  }
+
+  &__title {
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: bold;
+    margin: unset;
+  }
+
+  &__metadata {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16px;
+
+    &__item {
+      white-space: nowrap;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin: unset;
+      line-height: 100%;
+      font-size: 13px;
+      color: var(--c--contextuals--content--semantic--neutral--secondary);
+
+      &.warning {
+        color: var(--c--contextuals--content--semantic--warning--secondary);
+      }
+
+      span {
+        white-space: wrap;
+        flex-shrink: 10000;
+      }
+
+      &__icon {
+        flex-grow: 1;
+        width: 16px !important;
+        height: 16px !important;
+      }
+    }
+  }
+}

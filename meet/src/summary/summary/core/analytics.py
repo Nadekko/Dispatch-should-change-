@@ -1,0 +1,233 @@
+"""Analytics classes."""
+
+import json
+import socket
+import time
+from collections import Counter
+from functools import cached_property, lru_cache
+from urllib.parse import urlsplit, urlunsplit
+
+import redis
+from celery.utils.log import get_task_logger
+from posthog import Posthog
+
+from summary.core.config import get_settings
+from summary.core.models import SummarizeTaskJob, TranscribeTaskJob
+
+logger = get_task_logger(__name__)
+settings = get_settings()
+
+
+class AnalyticsException(Exception):
+    """Exception raised when analytics operations fail."""
+
+    pass
+
+
+class Analytics:
+    """Analytics client wrapper for PostHog integration."""
+
+    def __init__(self):
+        """Initialize a client if settings are configure."""
+        self._client = None
+        if settings.posthog_api_key and settings.posthog_enabled:
+            logger.info("Initialize analytics client")
+            self._client = Posthog(settings.posthog_api_key, settings.posthog_api_host)
+
+    @cached_property
+    def _hostname(self):
+        return socket.gethostname()
+
+    @property
+    def is_disabled(self):
+        """Check if analytics client is disabled or not configured."""
+        return not self._client
+
+    def capture(self, event_name, distinct_id, properties=None):
+        """Track an event if analytics is enabled."""
+        if self.is_disabled:
+            return
+
+        properties = {**(properties or {}), "_hostname": self._hostname}
+
+        try:
+            self._client.capture(
+                event_name, distinct_id=distinct_id, properties=properties
+            )
+        except Exception as e:
+            raise AnalyticsException("Failed to capture analytics event") from e
+
+    def is_feature_enabled(self, feature_name: str, distinct_id: str = None) -> bool:
+        """Check if a feature flag is enabled for a user."""
+        if self.is_disabled:
+            return False
+
+        try:
+            return self._client.feature_enabled(feature_name, distinct_id)
+        except Exception as e:
+            logger.error("Error checking feature flag %s: %s", feature_name, e)
+            return False
+
+
+@lru_cache
+def get_analytics():
+    """Init Analytics client once."""
+    return Analytics()
+
+
+class MetadataManager:
+    """A Redis-based metadata manager for storing and retrieving task metadata."""
+
+    def __init__(self):
+        """Initialize the task tracker with analytics client."""
+        self._redis = redis.from_url(settings.task_tracker_redis_url)
+        self._key_prefix = settings.task_tracker_prefix
+        self._analytics = get_analytics()
+        self._is_disabled = self._analytics.is_disabled
+
+    def _get_redis_key(self, task_id):
+        """Generate Redis key for task metadata."""
+        return f"{self._key_prefix}{task_id}"
+
+    def _save_metadata(self, task_id, metadata):
+        """Save metadata for a specific task to Redis."""
+        self._redis.hset(self._get_redis_key(task_id), mapping=metadata)
+
+    @staticmethod
+    def _convert_value(value):
+        """Convert a string value to the most appropriate Python type."""
+        try:
+            return int(value)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                return value
+
+    def _get_metadata(self, task_id):
+        """Retrieve and parse metadata for a specific task from Redis."""
+        raw_metadata = self._redis.hgetall(self._get_redis_key(task_id))
+        return {
+            k.decode("utf-8"): self._convert_value(v.decode("utf-8"))
+            for k, v in raw_metadata.items()
+        }
+
+    def has_task_id(self, task_id):
+        """Check if task_id exists in tasks metadata cache."""
+        return self._redis.exists(self._get_redis_key(task_id))
+
+    def create(self, task_id: str, task_payload: TranscribeTaskJob | SummarizeTaskJob):
+        """Create initial metadata entry for a new task."""
+        if self._is_disabled or self.has_task_id(task_id):
+            return
+
+        start_time = time.time()
+        initial_metadata = {
+            "start_time": start_time,
+            "retries": 0,
+            "sub": task_payload.user_sub,
+            # avoid None in redis, it shouldn't happen anyway in prod
+            "email": task_payload.user_email or "",
+            "tenant_id": task_payload.tenant_id,
+            "queuing_time": round(start_time - task_payload.received_at.timestamp(), 2),
+        }
+
+        if isinstance(task_payload, TranscribeTaskJob):
+            parts = urlsplit(task_payload.cloud_storage_url)
+            clean_url = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+            initial_metadata["source_url"] = clean_url
+            initial_metadata["asr_model"] = settings.whisperx_asr_model
+        elif isinstance(task_payload, SummarizeTaskJob):
+            initial_metadata["content_length"] = len(task_payload.content)
+            initial_metadata["llm_model"] = settings.llm_model
+
+        self._save_metadata(task_id, initial_metadata)
+
+    def retry(self, task_id):
+        """Increment retry counter for a task."""
+        if self._is_disabled or not self.has_task_id(task_id):
+            return
+
+        metadata = self._get_metadata(task_id)
+
+        if "retries" in metadata:
+            metadata["retries"] = int(metadata["retries"]) + 1
+        else:
+            metadata["retries"] = 1
+
+        self._save_metadata(task_id, metadata)
+
+    def clear(self, task_id):
+        """Remove task metadata from cache."""
+        if self._is_disabled or not self.has_task_id(task_id):
+            return
+        self._redis.delete(self._get_redis_key(task_id))
+
+    def track(self, task_id, data):
+        """Update task metadata with additional data."""
+        if self._is_disabled or not self.has_task_id(task_id):
+            return
+
+        metadata = self._get_metadata(task_id)
+        self._save_metadata(task_id, {**metadata, **data})
+
+    def track_transcription_metadata(self, task_id, transcription):
+        """Extract and track metadata from transcription results."""
+        if self._is_disabled or not self.has_task_id(task_id):
+            return
+
+        if not transcription or not transcription.segments:
+            self.track(task_id, {"transcription_empty": "true", "number_speakers": 0})
+            return
+
+        speakers = [
+            segment.get("speaker", "UNKNOWN_SPEAKER")
+            for segment in transcription.segments
+        ]
+
+        speaker_counts = Counter(speakers)
+        segments_count = len(transcription.segments)
+
+        speaker_percentages = {
+            speaker: round((count / segments_count) * 100, 2)
+            for speaker, count in speaker_counts.items()
+        }
+
+        text_length = 0
+
+        for segment in transcription.segments:
+            text_length += len(segment.get("text", ""))
+
+        self.track(
+            task_id,
+            {
+                "transcription_empty": "false",
+                "speakers_count": len(set(speakers)),
+                "segments_count": segments_count,
+                "speakers_distribution": json.dumps(speaker_percentages),
+                "text_length": text_length,
+            },
+        )
+
+    def capture(self, task_id, event_name, extra_properties=None):
+        """Capture analytics event with task metadata and clean up."""
+        if self._is_disabled or not self.has_task_id(task_id):
+            return
+
+        metadata = self._get_metadata(task_id)
+
+        if extra_properties:
+            metadata = {**metadata, **extra_properties}
+
+        if "start_time" in metadata:
+            metadata["execution_time"] = round(time.time() - metadata["start_time"], 2)
+            del metadata["start_time"]
+
+        metadata["task_id"] = task_id
+
+        self.clear(task_id)
+
+        try:
+            self._analytics.capture(event_name, metadata.get("sub"), metadata)
+        except AnalyticsException:
+            logger.exception("Failed to capture analytics event")

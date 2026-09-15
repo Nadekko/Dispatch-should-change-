@@ -1,0 +1,134 @@
+.transcript__transcript-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+
+  .invisible-line-break {
+    line-height: 0;
+    height: 0;
+  }
+}
+
+.transcript__segment {
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  padding: 0.25rem 0.25rem;
+  background: transparent;
+  cursor: text;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  font-size: 14px;
+  line-height: 20px;
+
+  display: inline;
+
+  font-family: inherit;
+
+  &:hover {
+    background: color-mix(
+      in srgb,
+      var(--c--contextuals--background--semantic--brand--tertiary) 30%,
+      transparent
+    );
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--c--contextuals--border--semantic--brand--primary);
+    box-shadow: 0 0 0 1px
+      var(--c--contextuals--border--semantic--brand--primary);
+  }
+
+  &[data-active='true'] {
+    background: color-mix(
+      in srgb,
+      var(--c--contextuals--background--semantic--brand--tertiary) 55%,
+      transparent
+    );
+  }
+}
+
+.transcript__intro {
+  font-weight: bold;
+
+  &__spacer {
+    margin-right: 0.25rem;
+  }
+}
+
+.transcript__segment-text {
+  color: var(--c--contextuals--content--surface--primary);
+  display: inline;
+}
+
+.transcript__word {
+  border-radius: 0.2rem;
+  transition: background-color 0.15s ease;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.transcript__word[data-active='true'] {
+  background: color-mix(
+    in srgb,
+    var(--c--contextuals--background--semantic--brand--primary) 30%,
+    transparent
+  );
+}
+
+.transcript__word-whitespace {
+  white-space: pre-wrap;
+}
+
+.transcript-pending {
+  &__skeletons {
+    display: flex;
+    gap: 6px;
+    flex-direction: column;
+
+    &__row {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+
+      :first-child {
+        width: 100px;
+      }
+    }
+  }
+
+  &__message {
+    padding-top: 24px;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--c--contextuals--content--semantic--neutral--secondary);
+
+    p {
+      text-align: center;
+      max-width: 300px;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+
+  &--audio-extraction {
+    .transcript-pending__message {
+      min-height: 220px;
+    }
+
+    .transcript-pending__message p {
+      margin: 0;
+
+      &:last-child {
+        color: var(--c--contextuals--content--semantic--neutral--tertiary);
+      }
+    }
+  }
+}

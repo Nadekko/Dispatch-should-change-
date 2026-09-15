@@ -1,0 +1,802 @@
+{
+  "feedback": {
+    "heading": {
+      "normal": "You have left the meeting",
+      "duplicateIdentity": "You have joined the meeting from another device",
+      "participantRemoved": "You have been removed from the meeting by a host"
+    },
+    "home": "Return to home",
+    "back": "Rejoin the meeting"
+  },
+  "selectDevice": {
+    "loading": "Loading…",
+    "select": "Select a value",
+    "permissionsNeeded": "Permission needed",
+    "deviceNotFound": {
+      "videoinput": "No camera detected. Check that it is properly wired.",
+      "audioinput": "No microphone detected. Check that it is properly wired."
+    },
+    "deviceInUse": {
+      "videoinput": "Camera unavailable: it is probably in use by another application or browser tab.",
+      "audioinput": "Microphone unavailable: it is probably in use by another application or browser tab."
+    },
+    "settings": {
+      "audio": "Audio settings",
+      "video": "Video settings"
+    },
+    "effects": "Backgrounds and Effects",
+    "videoinput": {
+      "choose": "Select camera",
+      "permissionsNeeded": "Select camera - permission needed",
+      "disable": "Disable camera",
+      "enable": "Enable camera",
+      "turnedOff": "Camera turned off",
+      "turnedOn": "Camera turned on",
+      "label": "Camera",
+      "placeholder": "Enable camera to see the preview"
+    },
+    "audioinput": {
+      "choose": "Select microphone",
+      "level": "Microphone input level",
+      "muteTest": "Turn on your microphone to test it",
+      "permissionsNeeded": "Select microphone - permission needed",
+      "disable": "Disable microphone",
+      "enable": "Enable microphone",
+      "turnedOff": "Microphone turned off",
+      "turnedOn": "Microphone turned on",
+      "label": "Microphone"
+    },
+    "audiooutput": {
+      "choose": "Select speaker",
+      "permissionsNeeded": "Select speaker - permission needed",
+      "test": "Test speakers",
+      "testing": "Playing test sound…"
+    }
+  },
+  "join": {
+    "effects": {
+      "description": "Apply backgrounds and effects",
+      "title": "Effects",
+      "subTitle": "Configure your camera's effects."
+    },
+    "heading": "Join the meeting?",
+    "joinLabel": "Join",
+    "joinMeeting": "Join meeting",
+    "toggleOff": "Click to turn off",
+    "toggleOn": "Click to turn on",
+    "usernameHint": "Shown to other participants",
+    "usernameLabel": "Your name",
+    "errors": {
+      "usernameEmpty": "Your name cannot be empty"
+    },
+    "cameraDisabled": "Camera is disabled.",
+    "cameraNotFound": "No camera detected. Check that it is properly plugged in.",
+    "cameraInUse": "Your camera is unavailable. It is probably being used by another application or browser tab.",
+    "cameraStarting": "Camera is starting…",
+    "cameraNotGranted": "Would you like others to be able to see you during the meeting?",
+    "cameraAndMicNotGranted": "Would you like others to be able to see and hear you during the meeting?",
+    "permissionsButton": {
+      "cameraAndMicNotGranted": "Allow access to camera and microphone",
+      "cameraNotGranted": "Allow access to camera"
+    },
+    "videoPreview": {
+      "enabled": "Video preview enabled",
+      "disabled": "Video preview disabled"
+    },
+    "waiting": {
+      "title": "Requesting to join...",
+      "body": "You will be able to join this call when someone authorizes you"
+    },
+    "denied": {
+      "title": "You cannot join this call",
+      "body": "Your request to join has been denied."
+    },
+    "timeoutInvite": {
+      "title": "You cannot join this call",
+      "body": "No one responded to your request"
+    }
+  },
+  "leaveRoomPrompt": "This will make you leave the meeting.",
+  "shareDialog": {
+    "copy": "Copy information",
+    "copyUrl": "Copy link",
+    "copied": "Information copied to clipboard",
+    "heading": "Your meeting is ready",
+    "description": "Share this link with people you want to invite to the meeting.",
+    "permissions": "People with this link do not need your permission to join this meeting.",
+    "closeDialog": "Close dialog",
+    "phone": {
+      "call": "Call:",
+      "pinCode": "Code:"
+    }
+  },
+  "pagination": {
+    "label": "Participants pages",
+    "count": "{{currentPage}} of {{totalPageCount}}",
+    "next": "next page",
+    "previous": "previous page"
+  },
+  "mediaErrorDialog": {
+    "DeviceInUse": {
+      "title": {
+        "audioinput": "Microphone Activation Failed",
+        "videoinput": "Camera Activation Failed"
+      },
+      "body": {
+        "audioinput": "Your microphone is already in use by another tab or application, which prevents it from being activated in this video call. If you wish, close the other tab or application to use it here.",
+        "videoinput": "Your camera is already in use by another tab or application, which prevents it from being activated in this video call. If you wish, close the other tab or application to use it here."
+      }
+    },
+    "NotFound": {
+      "title": {
+        "audioinput": "No microphone detected",
+        "videoinput": "No camera detected"
+      },
+      "body": {
+        "audioinput": "No microphone was detected on your device. Check that it is properly plugged in and not disabled by a mute switch, then try again.",
+        "videoinput": "No camera was detected on your device. Check that it is properly plugged in and not blocked by a cover or switch, then try again."
+      }
+    },
+    "close": "OK"
+  },
+  "permissionErrorDialog": {
+    "heading": {
+      "camera": "{{appTitle}} is not allowed to use your camera",
+      "microphone": "{{appTitle}} is not allowed to use your microphone",
+      "cameraAndMicrophone": "{{appTitle}} is not allowed to use your microphone or camera",
+      "default": "{{appTitle}} is not allowed to use certain permissions"
+    },
+    "body": {
+      "openMenu": {
+        "others": "Click on the settings icon ICON_PLACEHOLDER in your browser’s address bar",
+        "safari": "Click the 'Safari' menu, and open 'Settings for {{appDomain}}'."
+      },
+      "details": {
+        "camera": "Allow access to the camera",
+        "microphone": "Allow access to the microphone",
+        "cameraAndMicrophone": "Allow access to the camera and microphone",
+        "default": "Enable the necessary permissions."
+      }
+    }
+  },
+  "systemPermissionDialog": {
+    "heading": {
+      "camera": "Allow your browser to use your camera",
+      "microphone": "Allow your browser to use your microphone",
+      "cameraAndMicrophone": "Allow your browser to use your camera and microphone"
+    },
+    "device": {
+      "camera": "camera",
+      "microphone": "microphone",
+      "cameraAndMicrophone": "camera and microphone"
+    },
+    "intro": "Your browser already has permission, but your computer's system settings are blocking access to your {{device}}.",
+    "steps": {
+      "macos": {
+        "1": "In System Settings, open “Privacy & Security”.",
+        "2": "Allow your browser to access your {{device}}."
+      },
+      "windows": {
+        "1": "In Windows Settings, open “Privacy & security”.",
+        "2": "Turn on {{device}} access and allow desktop apps to use it."
+      },
+      "android": {
+        "1": "In Android Settings, open “Apps” and select your browser.",
+        "2": "In “Permissions”, allow access to the {{device}}, then reload this page."
+      },
+      "other": {
+        "1": "In your system's privacy settings, allow your browser to access your {{device}}.",
+        "2": "Then try again."
+      }
+    },
+    "openSettings": "Open system settings"
+  },
+  "silentMic": {
+    "tooltip": "Your microphone is on, but no sound is being detected. Click to learn more.",
+    "dialog": {
+      "title": "No sound detected",
+      "intro": "Your microphone is on, but we haven't detected any sound for a while. Check the following:",
+      "causes": {
+        "system": "Your system's privacy settings may be blocking microphone access.",
+        "hardware": "A mute switch may be turned on, or your microphone may be disconnected or faulty.",
+        "wrongDevice": "The wrong microphone may be selected. Try choosing another one from the microphone menu."
+      },
+      "hint": "Speak again after checking these settings. This warning will disappear as soon as sound is detected.",
+      "close": "Got it",
+      "discard": "Turn off silent microphone detection"
+    }
+  },
+  "permissionsButton": {
+    "tooltip": "More info",
+    "ariaLabel": "Permissions issue. Show more info"
+  },
+  "error": {
+    "createRoom": {
+      "heading": "Authentication Required",
+      "body": "This room has not been created yet. Please authenticate to create it or wait for an authenticated user to do so."
+    },
+    "screenShare": {
+      "title": "Unable to share your screen",
+      "ariaLabel": "Unable to share your screen",
+      "message": "Your browser may not be allowed to record the screen on your computer.",
+      "settingsInstructions": "Go to your",
+      "settingsLabel": {
+        "macos": "System Preferences",
+        "windows": "Windows privacy settings"
+      },
+      "helpLinkText": "To learn more, see",
+      "helpLinkLabel": "Presentation issue",
+      "closeButton": "Dismiss",
+      "newTab": "New window"
+    }
+  },
+  "isIdleDisconnectModal": {
+    "title": "Are you still there?",
+    "body": "You are the only participant. This call will end in {{duration}}. Would you like to continue the call?",
+    "settingsPrefix": "To stop seeing this message, go to",
+    "settingsLink": "Settings > General",
+    "settingsSuffix": ".",
+    "stayButton": "Continue the call",
+    "leaveButton": "Leave now",
+    "countdownAnnouncement": "Call ends in {{duration}}."
+  },
+  "controls": {
+    "region": "Call controls",
+    "microphone": "Microphone",
+    "camera": "Camera",
+    "chat": {
+      "open": "Close the chat",
+      "closed": "Open the chat",
+      "input": {
+        "textArea": {
+          "label": "Enter a message",
+          "placeholder": "Enter a message"
+        },
+        "button": {
+          "label": "Send message"
+        }
+      }
+    },
+    "info": {
+      "open": "Hide information",
+      "closed": "Show information"
+    },
+    "hand": {
+      "raise": "Raise hand",
+      "lower": "Lower hand"
+    },
+    "subtitles": {
+      "closed": "Show subtitles",
+      "open": "Hide subtitles"
+    },
+    "screenShare": {
+      "start": "Share screen",
+      "stop": "Stop screen share"
+    },
+    "leave": "Leave",
+    "participants": {
+      "open": "Hide everyone",
+      "closed": "See everyone",
+      "count_one": "{{count}} participant",
+      "count_other": "{{count}} participants"
+    },
+    "tools": {
+      "open": "Hide more tools",
+      "closed": "Show more tools"
+    },
+    "admin": {
+      "open": "Hide admin",
+      "closed": "Open admin"
+    },
+    "moreOptions": "More options",
+    "reactions": {
+      "button": "Send reaction",
+      "toolbar": "Send reaction",
+      "announce": "{{name}} : {{emoji}}",
+      "you": "you",
+      "emojis": {
+        "thumbs-up": "thumbs up",
+        "thumbs-down": "thumbs down",
+        "clapping-hands": "clapping hands",
+        "red-heart": "red heart",
+        "face-with-tears-of-joy": "face with tears of joy",
+        "face-with-open-mouth": "surprised face",
+        "party-popper": "party popper",
+        "folded-hands": "folded hands"
+      }
+    }
+  },
+  "pictureInPicture": {
+    "placeholder": {
+      "title": "Your video call is in another window.",
+      "description": "Picture-in-Picture mode allows you to stay connected to the call while performing other tasks.",
+      "bringBack": "Bring the call back here"
+    },
+    "stage": "Participants",
+    "controlBar": "Meeting controls",
+    "title": "Picture-in-picture meeting"
+  },
+  "options": {
+    "buttonLabel": "More Options",
+    "items": {
+      "feedback": "Give us feedback",
+      "settings": "Settings",
+      "screenRecording": "Screen recording",
+      "transcript": "Transcription",
+      "username": "Update Your Name",
+      "effects": "Backgrounds and Effects",
+      "switchCamera": "Switch camera",
+      "pictureInPicture": {
+        "enter": "Picture-in-picture",
+        "exit": "Close picture-in-picture"
+      },
+      "fullscreen": {
+        "enter": "Fullscreen",
+        "exit": "Exit fullscreen mode"
+      },
+      "support": "Contact support",
+      "documentation": "Documentation"
+    }
+  },
+  "effects": {
+    "activateCamera": "Your camera is disabled. Choose an option to enable it.",
+    "cameraDisabled": "Your camera is disabled.",
+    "notAvailable": "Video effects will be available soon on your browser. We're working on it! In the meantime, you can use Google Chrome for best performance or Firefox :(",
+    "heading": "Blur",
+    "clear": "Disable effect",
+    "blur": {
+      "title": "Background blur",
+      "status": {
+        "none": "Background clear.",
+        "light": "Background slightly blurred.",
+        "strong": "Background strongly blurred."
+      },
+      "light": {
+        "apply": "Slightly blur your background",
+        "clear": "Disable blur"
+      },
+      "normal": {
+        "apply": "Blur your background",
+        "clear": "Disable blur"
+      }
+    },
+    "virtual": {
+      "title": "Virtual backgrounds",
+      "selectedLabel": "Background applied:",
+      "apply": "Replace your background:",
+      "personal": {
+        "title": "My backgrounds",
+        "selectedLabel": "Unselect background (it's currently applied).",
+        "apply": "Use as background.",
+        "selectFileTooltip": "Select an image file to use as a personal background",
+        "notLoggedInWarning": "You are not logged-in, personal backgrounds won't be saved from one meeting to the other.",
+        "warningUploadDisabled": "Personal backgrounds are currently not saved from one meeting to the other.",
+        "uploadLimitReached": "You cannot upload more personal backgrounds.",
+        "uploadInProgress": "Image is being uploaded…",
+        "deleteLabel": "Delete background.",
+        "errors": {
+          "close": "Close",
+          "file_too_large": {
+            "title": "File too large",
+            "description": "The file is too large. Please choose a file smaller than {{maxSize, number}} MB."
+          },
+          "invalid_file_type": {
+            "title": "Invalid file type",
+            "description": "The file type is not supported. Please choose a {{allowedExtension, list(type: 'disjunction')}} file."
+          }
+        }
+      },
+      "presets": {
+        "title": "Suggestions",
+        "descriptions": {
+          "0": "Fluted wooden furniture",
+          "1": "Meeting room",
+          "2": "Loft with black glass partition",
+          "3": "Dining room",
+          "4": "Wooden shelves",
+          "5": "Wooden staircase",
+          "6": "Gray library",
+          "7": "Coffee counter"
+        }
+      }
+    },
+    "faceLandmarks": {
+      "title": "Visual Effects",
+      "glasses": {
+        "apply": "Add Glasses",
+        "clear": "Remove Glasses"
+      },
+      "french": {
+        "apply": "Add French touch",
+        "clear": "Remove French touch"
+      }
+    }
+  },
+  "sidePanel": {
+    "ariaLabel": "Sidepanel - {{title}}",
+    "backToTools": "Back to meeting tools",
+    "heading": {
+      "participants": "Participants",
+      "effects": "Backgrounds and Effects",
+      "chat": "Messages in the chat",
+      "transcript": "Transcribe",
+      "screenRecording": "Record",
+      "admin": "Host settings",
+      "tools": "More tools",
+      "info": "Meeting information"
+    },
+    "content": {
+      "participants": "participants",
+      "effects": "Backgrounds and Effects",
+      "chat": "messages",
+      "transcript": "transcribe",
+      "screenRecording": "record",
+      "admin": "host settings",
+      "tools": "more tools",
+      "info": "meeting information"
+    },
+    "closeButton": "Hide {{content}} (Escape)",
+    "escapeHint": "Press Escape to close"
+  },
+  "chat": {
+    "disclaimer": "The messages are visible to participants only at the time they are sent. All messages are deleted at the end of the call.",
+    "messagesLog": "Chat messages"
+  },
+  "moreTools": {
+    "body": "Access more tools to enhance your meetings.",
+    "linkAriaLabel": "Open documentation about tools - opens in new window",
+    "moreLink": "Open documentation",
+    "tools": {
+      "transcript": {
+        "title": "Transcribe",
+        "body": "Turn meetings into text."
+      },
+      "screenRecording": {
+        "title": "Record",
+        "body": "Save meetings as video."
+      }
+    }
+  },
+  "info": {
+    "roomInformation": {
+      "title": "Connection Information",
+      "button": {
+        "ariaLabel": "Copy the information from your meeting",
+        "copy": "Copy information",
+        "copied": "Information copied"
+      },
+      "phone": {
+        "call": "Call:",
+        "pinCode": "Code:"
+      }
+    }
+  },
+  "transcript": {
+    "heading": "Transcribe your meeting with the AI Assistant",
+    "body": "Transcribe up to {{max_duration}} of meeting time.",
+    "bodyWithoutMaxDuration": "Transcribe your meeting without limits.",
+    "details": {
+      "receiver": "The transcript will be sent to the host and co-hosts.",
+      "destination": "A new document will be created on",
+      "destinationUnknown": "A new document will be created",
+      "language": "Meeting language:",
+      "recording": "Also start a video recording"
+    },
+    "button": {
+      "start": "Start transcribing the meeting",
+      "stop": "Stop transcribing the meeting",
+      "saving": "Saving…",
+      "starting": "Starting…",
+      "anotherModeStarted": "Screen recording is running. Switch panels and stop it."
+    },
+    "linkMore": "Open documentation",
+    "linkAriaLabel": "Open documentation about transcription - opens in new window",
+    "notAdminOrOwner": {
+      "heading": "Restricted Access",
+      "body": "For security reasons, only the meeting creator or an admin can start a transcription (beta).",
+      "linkMore": "Open documentation",
+      "linkAriaLabel": "Open documentation about transcription access - opens in new window",
+      "dividerLabel": "OR",
+      "login": {
+        "heading": "Login Required",
+        "body": "Only the meeting creator or an admin can start a transcription. Log in to verify your permissions."
+      },
+      "request": {
+        "heading": "Request Transcription",
+        "body": "The host will be notified and can enable transcription for you.",
+        "buttonLabel": "Request"
+      }
+    },
+    "premium": {
+      "heading": "Advanced feature",
+      "body": "This feature is not available to you. Please contact support for more information.",
+      "linkMore": "Open documentation",
+      "linkAriaLabel": "Open documentation about advanced access - opens in new window",
+      "dividerLabel": "OR",
+      "login": {
+        "heading": "You are not logged in!",
+        "body": "You must be logged in to use this feature. Please log in, then try again."
+      },
+      "request": {
+        "heading": "Request Transcription",
+        "body": "The host will be notified and can enable transcription for you.",
+        "buttonLabel": "Request"
+      }
+    }
+  },
+  "screenRecording": {
+    "heading": "Record this call for later",
+    "body": "Record up to {{max_duration}} of meeting.",
+    "bodyWithoutMaxDuration": "Record your meeting without limit.",
+    "linkMore": "Open documentation",
+    "linkAriaLabel": "Open documentation about recording - opens in new window",
+    "details": {
+      "receiver": "The recording will be sent to the host and co-hosts.",
+      "destination": "This recording will be temporarily stored on our servers",
+      "loading": "Starting recording",
+      "linkMore": "Learn more",
+      "transcription": "Transcribe this recording"
+    },
+    "button": {
+      "start": "Start recording the meeting",
+      "stop": "Stop recording the meeting",
+      "saving": "Saving…",
+      "starting": "Starting…",
+      "anotherModeStarted": "Transcription is running. <br/> Switch panels and stop it."
+    },
+    "notAdminOrOwner": {
+      "heading": "Restricted Access",
+      "body": "For security reasons, only the meeting creator or an admin can start a recording (beta).",
+      "linkMore": "Open documentation",
+      "linkAriaLabel": "Open documentation about recording access - opens in new window",
+      "dividerLabel": "OR",
+      "login": {
+        "heading": "Login Required",
+        "body": "Only the meeting creator or an admin can start screen recording. Log in to verify your permissions."
+      },
+      "request": {
+        "heading": "Request Recording",
+        "body": "The host will be notified and can enable recording for you.",
+        "buttonLabel": "Request"
+      }
+    },
+    "premium": {
+      "heading": "Advanced feature",
+      "body": "This feature is not available to you. Please contact support for more information.",
+      "linkMore": "Open documentation",
+      "linkAriaLabel": "Open documentation about advanced access - opens in new window",
+      "dividerLabel": "OR",
+      "login": {
+        "heading": "You are not logged in!",
+        "body": "You must be logged in to use this feature. Please log in, then try again."
+      },
+      "request": {
+        "heading": "Request Recording",
+        "body": "The host will be notified and can enable recording for you.",
+        "buttonLabel": "Request"
+      }
+    },
+    "durationMessage": "(limited to {{max_duration}}) "
+  },
+  "errorRecordingAlertDialog": {
+    "title": "Recording Failed",
+    "body": {
+      "stop": "We were unable to stop the recording. Please try again in a moment.",
+      "start": "We were unable to start the recording. Please try again in a moment."
+    },
+    "button": "OK"
+  },
+  "admin": {
+    "description": "These host settings allow you to maintain control of your meeting. Only hosts can access these controls.",
+    "access": {
+      "title": "Room access",
+      "description": "These settings will also apply to future occurrences of this meeting.",
+      "type": "Meeting access types",
+      "levels": {
+        "public": {
+          "label": "Open",
+          "description": "No one needs to request to join the meeting."
+        },
+        "trusted": {
+          "label": "Open to trusted people",
+          "description": "Authenticated people do not need to request to join the meeting."
+        },
+        "restricted": {
+          "label": "Restricted",
+          "description": "People who have not been invited to the meeting must request to join."
+        }
+      }
+    },
+    "moderation": {
+      "title": "Meeting Moderation",
+      "description": "These settings restrict the actions contributors can take during the meeting.",
+      "microphone": {
+        "label": "Turn on microphone",
+        "description": ""
+      },
+      "camera": {
+        "label": "Enable video",
+        "description": ""
+      },
+      "screenshare": {
+        "label": "Share their screen",
+        "description": "Disabling this option will prevent participants from sharing their screen, and any ongoing screen sharing will be stopped immediately."
+      },
+      "mute": {
+        "label": "Mute others",
+        "description": "When disabled, participants will no longer be able to mute other participants."
+      }
+    }
+  },
+  "rating": {
+    "submit": "Submit",
+    "question": "What do you think about the quality of your call?",
+    "levels": {
+      "min": "very poor",
+      "max": "excellent"
+    }
+  },
+  "openFeedback": {
+    "question": "What can we do to improve ourselves?",
+    "placeholder": "Describe your bugs or share your suggestions…",
+    "submit": "Submit",
+    "skip": "Skip"
+  },
+  "confirmationMessage": {
+    "heading": "Thank you for your submission",
+    "body": "Our product team takes the time to carefully review your feedback. We will get back to you as soon as possible."
+  },
+  "authenticationMessage": {
+    "heading": "How can we contact you?",
+    "placeholder": "Your email",
+    "submit": "Send",
+    "ignore": "Ignore"
+  },
+  "participants": {
+    "subheading": "In room",
+    "you": "You",
+    "unknown": "Unknown participant",
+    "host": "Host",
+    "cohost": "Co-host",
+    "member": "Member",
+    "contributors": "Contributors",
+    "collapsable": {
+      "open": "Open {{name}} list",
+      "close": "Close {{name}} list"
+    },
+    "unauthenticated": {
+      "badge": "User is not authenticated"
+    },
+    "muteYourself": "Close your mic",
+    "muteParticipant": "Close the mic of {{name}}",
+    "muteParticipantAlert": {
+      "heading": "Mute {{name}}",
+      "description": "Mute {{name}} for all participants? {{name}} will be the only one who can unmute themselves.",
+      "confirm": "Mute",
+      "cancel": "Cancel"
+    },
+    "raisedHands": "Raised hands",
+    "lowerParticipantHand": "Lower {{name}}'s hand",
+    "lowerParticipantsHand": "Lower all hands",
+    "muteParticipants": "Mute all microphones",
+    "waiting": {
+      "title": "Lobby",
+      "accept": {
+        "button": "Accept",
+        "label": "Accept {{name}} into the meeting",
+        "all": "Accept all"
+      },
+      "deny": {
+        "button": "Deny",
+        "label": "Deny {{name}} from the meeting",
+        "all": "Deny all"
+      }
+    },
+    "moreOptions": "More options"
+  },
+  "participantMenu": {
+    "remove": {
+      "label": "Remove from the call",
+      "ariaLabel": "Remove {{name}} from the call"
+    },
+    "unpin": {
+      "label": "Unpin",
+      "ariaLabel": "Unpin {{name}}"
+    },
+    "pin": {
+      "label": "Pin",
+      "ariaLabel": "Pin {{name}}"
+    },
+    "promote": {
+      "label": "Make co-host",
+      "ariaLabel": "Make {{name}} a co-host"
+    },
+    "demote": {
+      "label": "Remove co-host role",
+      "ariaLabel": "Remove {{name}}'s co-host role"
+    }
+  },
+  "pinAnnouncements": {
+    "pin": "The video of {{name}} is pinned.",
+    "unpin": "The video of {{name}} is no longer pinned.",
+    "self": {
+      "pin": "Your video is pinned.",
+      "unpin": "Your video is no longer pinned."
+    }
+  },
+  "recordingStateToast": {
+    "transcript": {
+      "started": "Transcribing",
+      "starting": "Transcription starting",
+      "stopping": "Transcription stopping"
+    },
+    "screen_recording": {
+      "started": "Recording in progress",
+      "starting": "Starting recording",
+      "stopping": "Stopping recording"
+    },
+    "any": {
+      "started": "Recording in progress"
+    },
+    "limitReachedAlert": {
+      "title": "Recording limit exceeded",
+      "description": "The recording has exceeded the maximum allowed duration{{duration_message}}. It will now be saved automatically.",
+      "durationMessage": " of {{duration}}",
+      "button": "OK"
+    }
+  },
+  "participantTileFocus": {
+    "containerLabel": "Options for {{name}}",
+    "toolbarHint": "{{shortcut}}: access shortcuts directly.",
+    "pin": {
+      "enable": "Pin",
+      "disable": "Unpin"
+    },
+    "effects": "Apply backgrounds and effects",
+    "muteParticipant": "Mute {{name}}",
+    "fullScreen": "Full screen"
+  },
+  "shortcutsPanel": {
+    "title": "Keyboard shortcuts",
+    "categories": {
+      "navigation": "Navigation",
+      "media": "Media",
+      "interaction": "Interaction"
+    },
+    "actions": {
+      "open-shortcuts": "Open shortcuts help",
+      "focus-toolbar": "Focus bottom toolbar",
+      "toggle-microphone": "Toggle microphone",
+      "toggle-camera": "Toggle camera",
+      "push-to-talk": "Push-to-talk (hold to unmute)",
+      "reaction": "Emoji reaction panel",
+      "fullscreen": "Toggle fullscreen",
+      "recording": "Toggle recording panel",
+      "raise-hand": "Raise or lower hand",
+      "toggle-chat": "Toggle chat",
+      "toggle-participants": "Toggle participants",
+      "open-shortcuts-settings": "Open shortcuts settings"
+    },
+    "sr": {
+      "control": "Control",
+      "command": "Command",
+      "alt": "Alt",
+      "option": "Option",
+      "shift": "Shift",
+      "plus": "plus",
+      "hold": "Hold {{key}}",
+      "noShortcut": "No shortcut"
+    },
+    "visual": {
+      "hold": "Hold {{key}}"
+    }
+  },
+  "fullScreenWarning": {
+    "message": "To avoid infinite loop display, do not share your entire screen. Instead, share a tab or another window.",
+    "stop": "Stop presenting",
+    "ignore": "Ignore"
+  },
+  "participantTile": {
+    "screenShare": "{{name}}'s screen"
+  }
+}

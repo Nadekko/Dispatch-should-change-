@@ -1,0 +1,190 @@
+{
+  "account": {
+    "currentlyLoggedAs": "U bent momenteel ingelogd als <0>{{user}}</0>",
+    "heading": "Account",
+    "youAreNotLoggedIn": "U bent niet ingelogd.",
+    "nameLabel": "Uw naam",
+    "authentication": "Authenticatie",
+    "nameError": "Uw naam mag niet leeg zijn"
+  },
+  "preferences": {
+    "title": "Voorkeuren",
+    "idleDisconnectModal": {
+      "label": "Verlaat oproepen zonder deelnemers",
+      "description": "Verlaat automatisch een oproep na een paar minuten als geen andere deelnemer meedoet"
+    },
+    "autoMuteLargeRoom": {
+      "label": "Mijn microfoon automatisch dempen",
+      "description": "Uw microfoon wordt automatisch gedempt wanneer u deelneemt aan een grote vergadering."
+    }
+  },
+  "audio": {
+    "microphone": {
+      "heading": "Microfoon",
+      "label": "Selecteer uw audioinvoer",
+      "disabled": "Microfoon uitgeschakeld"
+    },
+    "noiseReduction": {
+      "label": "Ruisonderdrukking",
+      "heading": "Ruisonderdrukking",
+      "ariaLabel": {
+        "enable": "Ruisonderdrukking inschakelen",
+        "disable": "Ruisonderdrukking uitschakelen"
+      }
+    },
+    "speakers": {
+      "heading": "Luidsprekers",
+      "label": "Selecteer uw audio-uitvoer",
+      "test": "Test",
+      "ongoingTest": "Testgeluid ...",
+      "safariWarning": "Luidsprekerselectie is nog niet beschikbaar op Safari vanwege browserbeperkingen."
+    },
+    "permissionsRequired": "Machtigingen vereist"
+  },
+  "video": {
+    "camera": {
+      "heading": "Camera",
+      "label": "Selecteer uw video-ingang",
+      "disabled": "Camera uitgeschakeld",
+      "previewAriaLabel": {
+        "enabled": "Videovoorbeeld ingeschakeld",
+        "disabled": "Videovoorbeeld uitgeschakeld"
+      }
+    },
+    "resolution": {
+      "heading": "Resolutie",
+      "publish": {
+        "label": "Selecteer uw verzendresolutie (max.)",
+        "items": {
+          "veryHigh": "Zeer hoge definitie",
+          "high": "Hoge definitie",
+          "medium": "Standaarddefinitie",
+          "low": "Lage definitie"
+        }
+      },
+      "subscribe": {
+        "label": "Selecteer uw ontvangstresolutie (max.)",
+        "items": {
+          "high": "Hoge definitie (automatisch)",
+          "medium": "Standaarddefinitie",
+          "low": "Lage definitie"
+        }
+      }
+    },
+    "permissionsRequired": "Machtigingen vereist"
+  },
+  "transcription": {
+    "heading": "Transcriptie",
+    "language": {
+      "label": "Vergadertaal",
+      "options": {
+        "french": "Frans (fr)",
+        "english": "Engels (en)",
+        "dutch": "Nederlands (nl)",
+        "german": "Duits (de)",
+        "auto": "Automatisch"
+      }
+    }
+  },
+  "notifications": {
+    "heading": "Geluidsmeldingen",
+    "label": "Geluidsmeldingen voor",
+    "actions": {
+      "disable": "Uitschakelen",
+      "enable": "Inschakelen"
+    },
+    "items": {
+      "participantJoined": {
+        "label": "Deelnemer is toegevoegd"
+      },
+      "handRaised": {
+        "label": "Hand opgestoken"
+      },
+      "messageReceived": {
+        "label": "Bericht ontvangen"
+      }
+    }
+  },
+  "shortcuts": {
+    "listLabel": "Sneltoetsen",
+    "columnAction": "Actie",
+    "columnShortcut": "Sneltoets"
+  },
+  "dialog": {
+    "heading": "Instellingen"
+  },
+  "language": {
+    "heading": "Taal",
+    "label": "Taal"
+  },
+  "settingsButtonLabel": "Instellingen",
+  "accessibility": {
+    "announceReactions": {
+      "label": "Reacties hardop aankondigen"
+    },
+    "font": {
+      "label": "Weergavelettertype",
+      "description": "Pas het lettertype van de interface aan om uw leescomfort te verbeteren.",
+      "options": {
+        "default": "Standaard",
+        "lexend": "Lexend (verbeterde leesbaarheid)",
+        "atkinson-hyperlegible": "Atkinson Hyperlegible (slechtziend)",
+        "opendyslexic": "OpenDyslexic (dyslexie)"
+      }
+    },
+    "captions": {
+      "heading": "Ondertitels",
+      "textSize": {
+        "label": "Ondertiteltekstgrootte",
+        "options": {
+          "small": "Klein",
+          "medium": "Gemiddeld",
+          "large": "Groot"
+        }
+      },
+      "fontColor": {
+        "label": "Tekstkleur",
+        "options": {
+          "default": "Standaard",
+          "white": "Wit",
+          "black": "Zwart",
+          "blue": "Blauw",
+          "green": "Groen",
+          "red": "Rood",
+          "yellow": "Geel",
+          "cyan": "Cyaan",
+          "magenta": "Magenta"
+        }
+      },
+      "backgroundColor": {
+        "label": "Achtergrondkleur",
+        "options": {
+          "default": "Standaard",
+          "white": "Wit",
+          "black": "Zwart",
+          "blue": "Blauw",
+          "green": "Groen",
+          "red": "Rood",
+          "yellow": "Geel",
+          "cyan": "Cyaan",
+          "magenta": "Magenta"
+        }
+      }
+    }
+  },
+  "tabs": {
+    "account": "Profiel",
+    "audio": "Audio",
+    "video": "Video",
+    "general": "Algemeen",
+    "notifications": "Meldingen",
+    "accessibility": "Toegankelijkheid",
+    "transcription": "Transcriptie",
+    "shortcuts": "Sneltoetsen",
+    "rooms": "Vergaderingen"
+  },
+  "roomDefaults": {
+    "heading": "Standaardinstellingen voor vergaderingen",
+    "description": "Kies de instellingen die standaard worden toegepast op nieuwe vergaderingen die u aanmaakt. U kunt ze voor elke vergadering nog steeds wijzigen via de hostinstellingen."
+  }
+}

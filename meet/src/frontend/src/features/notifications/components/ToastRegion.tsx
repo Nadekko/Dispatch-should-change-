@@ -1,0 +1,90 @@
+import { AriaToastRegionProps, useToastRegion } from 'react-aria'
+import type { QueuedToast, ToastState } from 'react-stately'
+import { Toast } from './Toast'
+import { useRef } from 'react'
+import { NotificationType } from '../NotificationType'
+import { ToastJoined } from './ToastJoined'
+import { ToastData } from './ToastProvider'
+import { ToastRaised } from './ToastRaised'
+import { ToastMuted } from './ToastMuted'
+import { ToastMessageReceived } from './ToastMessageReceived'
+import { ToastLowerHand } from './ToastLowerHand'
+import { ToastAnyRecording } from './ToastAnyRecording'
+import { ToastRecordingSaving } from './ToastRecordingSaving'
+import { ToastPermissionsRemoved } from './ToastPermissionsRemoved'
+import { ToastRecordingRequest } from './ToastRecordingRequest'
+import { ToastAutoMuteLargeRoom } from './ToastAutoMuteLargeRoom'
+import { ToastRoleChanged } from '@/features/notifications/components/ToastRoleChanged'
+
+interface ToastRegionProps extends AriaToastRegionProps {
+  state: ToastState<ToastData>
+}
+
+const renderToast = (
+  toast: QueuedToast<ToastData>,
+  state: ToastState<ToastData>
+) => {
+  switch (toast.content?.type) {
+    case NotificationType.ParticipantJoined:
+      return <ToastJoined key={toast.key} toast={toast} state={state} />
+
+    case NotificationType.HandRaised:
+      return <ToastRaised key={toast.key} toast={toast} state={state} />
+
+    case NotificationType.ParticipantMuted:
+      return <ToastMuted key={toast.key} toast={toast} state={state} />
+
+    case NotificationType.PermissionsRemoved:
+      return (
+        <ToastPermissionsRemoved key={toast.key} toast={toast} state={state} />
+      )
+
+    case NotificationType.MessageReceived:
+      return (
+        <ToastMessageReceived key={toast.key} toast={toast} state={state} />
+      )
+
+    case NotificationType.LowerHand:
+      return <ToastLowerHand key={toast.key} toast={toast} state={state} />
+
+    case NotificationType.AutoMuteLargeRoom:
+      return (
+        <ToastAutoMuteLargeRoom key={toast.key} toast={toast} state={state} />
+      )
+
+    case NotificationType.TranscriptionStarted:
+    case NotificationType.TranscriptionStopped:
+    case NotificationType.TranscriptionLimitReached:
+    case NotificationType.ScreenRecordingStarted:
+    case NotificationType.ScreenRecordingStopped:
+    case NotificationType.ScreenRecordingLimitReached:
+      return <ToastAnyRecording key={toast.key} toast={toast} state={state} />
+
+    case NotificationType.TranscriptionRequested:
+    case NotificationType.ScreenRecordingRequested:
+      return (
+        <ToastRecordingRequest key={toast.key} toast={toast} state={state} />
+      )
+
+    case NotificationType.RecordingSaving:
+      return (
+        <ToastRecordingSaving key={toast.key} toast={toast} state={state} />
+      )
+
+    case NotificationType.RoleChanged:
+      return <ToastRoleChanged key={toast.key} toast={toast} state={state} />
+
+    default:
+      return <Toast key={toast.key} toast={toast} state={state} />
+  }
+}
+
+export function ToastRegion({ state, ...props }: ToastRegionProps) {
+  const ref = useRef(null)
+  const { regionProps } = useToastRegion(props, state, ref)
+  return (
+    <div {...regionProps} ref={ref} className="toast-region">
+      {state.visibleToasts.map((toast) => renderToast(toast, state))}
+    </div>
+  )
+}

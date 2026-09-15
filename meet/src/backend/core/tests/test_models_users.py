@@ -1,0 +1,174 @@
+"""
+Unit tests for the User model
+"""
+
+from unittest import mock
+
+from django.core.exceptions import ValidationError
+
+import pytest
+
+from core import factories
+
+pytestmark = pytest.mark.django_db
+
+
+def test_models_users_str():
+    """The str representation should be the email."""
+    user = factories.UserFactory()
+    assert str(user) == user.email
+
+
+def test_models_users_id_unique():
+    """The "id" field should be unique."""
+    user = factories.UserFactory()
+    with pytest.raises(ValidationError, match="User with this Id already exists."):
+        factories.UserFactory(id=user.id)
+
+
+@pytest.mark.parametrize(
+    "sub,is_valid",
+    [
+        # cases from suitenumerique/docs PR #1295 (same validator)
+        ("valid_sub.@+-:=/", True),
+        ("invalid süb", False),
+        (12345, True),
+        # Auth0 emits "provider|user-id" subject identifiers
+        ("auth0|644c0bc8f1874ef6d339fb34", True),
+        ("google-oauth2|103547991597142817347", True),
+        # Keycloak-style UUID
+        ("f:550e8400-e29b-41d4-a716-446655440000:jdoe", True),
+        # base64/URN-style identifiers
+        ("dGVzdC1zdWItdmFsdWU=", True),
+        ("urn:example:user/42", True),
+        # legacy format still accepted
+        ("user@example.com", True),
+        # space (U+0020) is printable ASCII and remains allowed
+        ("sub with space", True),
+        # non-ASCII values are rejected
+        ("émilie", False),
+        # ASCII control characters (U+0000-U+001F, U+007F) are rejected:
+        # NUL passes isascii() but cannot be stored in PostgreSQL text
+        # fields, and the others invite log injection and interop issues
+        ("nul\x00sub", False),
+        ("\x00", False),
+        ("tab\tsub", False),
+        ("newline\nsub", False),
+        ("del\x7fsub", False),
+    ],
+)
+def test_models_users_sub_validator(sub, is_valid):
+    """
+    The "sub" field should accept any ASCII string as required by
+    OpenID Connect Core 1.0 §2 and RFC 7519 §4.1.2, and reject non-ASCII values.
+    """
+    user = factories.UserFactory()
+    user.sub = sub
+    if is_valid:
+        user.full_clean()
+    else:
+        with pytest.raises(
+            ValidationError,
+            match="Enter a valid sub. This value should be printable ASCII only.",
+        ):
+            user.full_clean()
+
+
+def test_models_users_sub_max_length():
+    """The "sub" field should enforce the 255 ASCII characters limit of OIDC Core 1.0 §2."""
+    user = factories.UserFactory(sub="a" * 255)
+    assert user.sub == "a" * 255
+
+    user.sub = "a" * 256
+    with pytest.raises(ValidationError, match="at most 255 characters"):
+        user.full_clean()
+
+
+def test_models_users_send_mail_main_existing():
+    """The "email_user' method should send mail to the user's email address."""
+    user = factories.UserFactory()
+
+    with mock.patch("django.core.mail.send_mail") as mock_send:
+        user.email_user("my subject", "my message")
+
+    mock_send.assert_called_once_with("my subject", "my message", None, [user.email])
+
+
+def test_models_users_send_mail_main_missing():
+    """The "email_user' method should fail if the user has no email address."""
+    user = factories.UserFactory(email=None)
+
+    with pytest.raises(ValueError) as excinfo:
+        user.email_user("my subject", "my message")
+
+    assert str(excinfo.value) == "User has no email address."
+
+
+def test_models_users_email_unique_when_sub_is_null():
+    """Email should be unique among users with no sub (pending users)."""
+    user = factories.UserFactory(sub=None, email="test@example.com")
+    with pytest.raises(
+        ValidationError, match="Constraint “unique_email_when_sub_is_null” is violated."
+    ):
+        factories.UserFactory(sub=None, email=user.email)
+
+
+def test_models_users_email_unique_case_insensitive_when_sub_is_null():
+    """Email uniqueness should be case-insensitive among users with no sub (pending users)."""
+    factories.UserFactory(sub=None, email="Test@example.com")
+    with pytest.raises(
+        ValidationError, match="Constraint “unique_email_when_sub_is_null” is violated."
+    ):
+        factories.UserFactory(sub=None, email="test@example.com")
+
+
+def test_models_users_email_not_unique_when_sub_is_set():
+    """Email uniqueness should not be enforced when users have a sub."""
+    user = factories.UserFactory(sub="sub-1", email="test@example.com")
+    user2 = factories.UserFactory(sub="sub-2", email=user.email)
+    assert user2.email == user.email
+
+
+def test_models_users_email_not_unique_between_sub_null_and_sub_set():
+    """A user with a sub and a pending user (sub=None) can share the same email."""
+    user = factories.UserFactory(sub="sub-1", email="test@example.com")
+    user2 = factories.UserFactory(sub=None, email=user.email)
+    assert user2.email == user.email
+
+
+def test_models_users_email_unique_constraint_allows_multiple_null_emails():
+    """Multiple users with sub=None and email=None should be allowed."""
+    factories.UserFactory(sub=None, email=None)
+    factories.UserFactory(sub=None, email=None)
+
+
+def test_models_users_sub_null_email_null_does_not_prevent_creation():
+    """Multiple pending users (sub=None, email=None) can be created without conflict.
+
+    sub=None is not unique-constrained. email uniqueness is only enforced among
+    sub=None users with a non-null email, so email=None bypasses it (NULL != NULL in SQL).
+    """
+    # Ghost row can still appear from bad code path
+    u1 = factories.UserFactory(sub=None, email=None)
+    u2 = factories.UserFactory(sub=None, email=None)
+    assert u1.pk != u2.pk
+
+
+def test_models_users_sub_can_be_null():
+    """sub is nullable: pending users exist before OIDC activation."""
+    user = factories.UserFactory(sub=None)
+    user.refresh_from_db()
+    assert user.sub is None
+
+
+def test_models_users_sub_null_does_not_prevent_creation():
+    """Multiple users can be created with sub=None (pending state)."""
+    u1 = factories.UserFactory(sub=None)
+    u2 = factories.UserFactory(sub=None)
+    assert u1.pk != u2.pk
+
+
+def test_models_users_sub_blank_is_accepted():
+    """sub='' passes validation because blank=True; null is preferred but not enforced."""
+    user = factories.UserFactory.build(sub="")
+    user.full_clean()

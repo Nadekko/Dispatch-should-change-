@@ -1,0 +1,63 @@
+{
+  "home": "Accueil",
+  "logout": "Déconnexion",
+  "recordCta": "Enregistrer",
+  "recordPageH1": "Nouvel enregistrement",
+  "images": {
+    "governmentLogoAlt": "Logo du Gouvernement français",
+    "appLogoAlt": "Logo Transcripts",
+    "assistantLogoAlt": "Logo LaSuite Assistant",
+    "downloadIosAlt": "Télécharger sur l'App Store",
+    "downloadAndroidAlt": "Télécharger sur Google Play",
+    "downloadIosAriaLabel": "Télécharger l'application iOS sur l'App Store (nouvelle fenêtre)",
+    "downloadAndroidAriaLabel": "Télécharger l'application Android sur Google Play (nouvelle fenêtre)"
+  },
+  "breadcrumbs": {
+    "myRecordings": "Mes enregistrements",
+    "trash": "Corbeille"
+  },
+  "info": {
+    "supportEmailStart": "Bonjour, ...",
+    "documentationUrl": "https://docs.numerique.gouv.fr/docs/c4fec08c-73cc-44a3-a04f-cf54125945dc/",
+    "faqUrl": "https://docs.numerique.gouv.fr/docs/95fcf4c6-09bf-43ec-bb78-5fd9de6be712/",
+    "mobileApp": {
+      "title": "Enregistrer, n'importe où",
+      "description": "Avec l'application mobile, votre enregistrement continue même lorsque votre écran est verrouillé.",
+      "scanToInstall": "Scanner pour installer",
+      "catchPhrase": "Enregistrez vos réunions en présentiel et générez automatiquement un rapport structuré dans Docs.",
+      "closePopupAriaLabel": "Fermer la pop-up de téléchargement de l'application mobile",
+      "openInTheAppStoreTitle": "Ouvrir dans l'App Store (nouvel onglet)",
+      "openInThePlayStoreTitle": "Ouvrir dans le Play Store (nouvel onglet)",
+      "scanQRCodeAriaLabel": "QR code à scanner pour installer l'application mobile"
+    },
+    "help": {
+      "asideAriaLabel": "Aide et documentation",
+      "ariaLabel": "Aide et Documentation",
+      "documentation": "Documentation",
+      "support": "Obtenir de l'aide",
+      "mobileApp": "Application mobile",
+      "legalInfo": "Informations légales"
+    }
+  },
+  "legal": {
+    "legalTerms": "Mentions légales",
+    "legalTermsUrl": "/mentions-legales",
+    "termsOfService": "Modalités d'utilisation",
+    "termsOfServiceUrl": "/modalites-utilisation",
+    "personalData": "Données personnelles",
+    "personalDataUrl": "/donnees-personnelles",
+    "accessibility": "Accessibilité : non conforme",
+    "accessibilityUrl": "/accessibilite",
+    "serviceProvisionAgreement": "Convention de mise à disposition",
+    "serviceProvisionAgreementUrl": "/convention-mise-a-disposition"
+  },
+  "pageTitles": {
+    "downloadMobileApp": "Télécharger l'application mobile",
+    "home": "Accueil",
+    "deletedRecordings": "Enregistrements supprimés",
+    "record": "Nouvel enregistrement",
+    "recordings": "Mes enregistrements",
+    "loading": "Chargement en cours",
+    "recordingNotFound": "Enregistrement non trouvé"
+  }
+}

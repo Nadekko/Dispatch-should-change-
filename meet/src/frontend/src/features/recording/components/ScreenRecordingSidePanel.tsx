@@ -1,0 +1,214 @@
+import { Div, H, Text } from '@/primitives'
+
+import { css } from '@/styled-system/css'
+import { useRoomId } from '@/features/rooms/livekit/hooks/useRoomId'
+import { useRoomContext } from '@livekit/components-react'
+import {
+  RecordingMode,
+  useHasRecordingAccess,
+  useRecordingStatuses,
+} from '@/features/recording'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
+import {
+  NotificationType,
+  notifyRecordingSaveInProgress,
+  useNotifyParticipants,
+} from '@/features/notifications'
+import { useConfig } from '@/api/useConfig'
+import { NoAccessView } from './NoAccessView'
+import { ControlsButton } from './ControlsButton'
+import { RowWrapper } from './RowWrapper'
+import { VStack } from '@/styled-system/jsx'
+import { Checkbox } from '@/primitives/Checkbox'
+import { useTranscriptionLanguage } from '@/features/settings'
+import { useMutateRecording } from '../hooks/useMutateRecording'
+import { useSidePanel } from '@/features/rooms/livekit/hooks/useSidePanel'
+import { useIsAdminOrOwner } from '@/features/rooms/livekit/hooks/useIsAdminOrOwner'
+import { FeatureFlags } from '@/features/analytics/enums'
+import { LimitDescription } from './LimitDescription'
+import { captureEvent, reportError } from '@/features/analytics/telemetry'
+
+export const ScreenRecordingSidePanel = () => {
+  const { data } = useConfig()
+
+  const keyPrefix = 'screenRecording'
+  const { t } = useTranslation('rooms', { keyPrefix })
+
+  const [includeTranscript, setIncludeTranscript] = useState(false)
+
+  const isAdminOrOwner = useIsAdminOrOwner()
+
+  const hasScreenRecordingAccess = useHasRecordingAccess(
+    RecordingMode.ScreenRecording,
+    FeatureFlags.ScreenRecording
+  )
+
+  const { notifyParticipants } = useNotifyParticipants()
+  const { selectedLanguageKey, isLanguageSetToAuto } =
+    useTranscriptionLanguage()
+
+  const roomId = useRoomId()
+
+  const { startRecording, isPendingToStart, stopRecording, isPendingToStop } =
+    useMutateRecording()
+
+  const statuses = useRecordingStatuses(RecordingMode.ScreenRecording)
+
+  const room = useRoomContext()
+  const { openTranscript } = useSidePanel()
+
+  const handleRequestScreenRecording = async () => {
+    await notifyParticipants({
+      type: NotificationType.ScreenRecordingRequested,
+    })
+    captureEvent('screen-recording-requested', {})
+  }
+
+  const handleScreenRecording = async () => {
+    if (!roomId) {
+      console.warn('No room ID found')
+      return
+    }
+    try {
+      if (statuses.isStarted || statuses.isStarting) {
+        setIncludeTranscript(false)
+        await stopRecording({ id: roomId })
+
+        await notifyParticipants({
+          type: NotificationType.ScreenRecordingStopped,
+        })
+        notifyRecordingSaveInProgress(
+          RecordingMode.ScreenRecording,
+          room.localParticipant
+        )
+      } else {
+        const recordingOptions = {
+          ...(!isLanguageSetToAuto && {
+            language: selectedLanguageKey,
+          }),
+          ...(includeTranscript && { transcribe: true }),
+        }
+
+        await startRecording({
+          id: roomId,
+          mode: RecordingMode.ScreenRecording,
+          options: recordingOptions,
+        })
+
+        await notifyParticipants({
+          type: NotificationType.ScreenRecordingStarted,
+        })
+        captureEvent('screen-recording-started', {
+          includeTranscript: includeTranscript,
+          language: selectedLanguageKey,
+        })
+      }
+    } catch (error) {
+      reportError('generic_failure', error, {
+        context: 'Failed to handle recording:',
+      })
+    }
+  }
+
+  if (!isAdminOrOwner) {
+    return (
+      <NoAccessView
+        i18nKeyPrefix={keyPrefix}
+        i18nKey="notAdminOrOwner"
+        helpArticle={data?.support?.help_article_recording}
+        imagePath="/assets/intro-slider/4.png"
+        handleRequest={handleRequestScreenRecording}
+        isActive={statuses.isActive}
+      />
+    )
+  }
+
+  if (!hasScreenRecordingAccess) {
+    return (
+      <NoAccessView
+        i18nKeyPrefix={keyPrefix}
+        i18nKey="premium"
+        imagePath="/assets/intro-slider/3.png"
+        isActive={statuses.isActive}
+        handleRequest={handleRequestScreenRecording}
+        isAdminOrOwner={isAdminOrOwner}
+      />
+    )
+  }
+
+  return (
+    <Div
+      display="flex"
+      overflowY="scroll"
+      padding="0 1.5rem"
+      flexGrow={1}
+      flexDirection="column"
+      alignItems="center"
+    >
+      <img
+        src="/assets/intro-slider/4.png"
+        alt=""
+        className={css({
+          minHeight: '250px',
+          height: '250px',
+          marginBottom: '1rem',
+          marginTop: '-16px',
+          '@media (max-height: 900px)': {
+            height: 'auto',
+            minHeight: 'auto',
+            maxHeight: '25%',
+            marginBottom: '0.75rem',
+          },
+          '@media (max-height: 770px)': {
+            display: 'none',
+          },
+        })}
+      />
+      <VStack gap={0} marginBottom={15}>
+        <H lvl={1} margin={'sm'} fullWidth>
+          {t('heading')}
+        </H>
+        <LimitDescription
+          keyPrefix={'screenRecording'}
+          supportArticleLink={data?.support?.help_article_recording}
+        />
+      </VStack>
+      <VStack gap={0} marginBottom={25}>
+        <RowWrapper iconName="cloud_download" position="first">
+          <Text variant="sm">{t('details.destination')}</Text>
+        </RowWrapper>
+        <RowWrapper iconName="mail" position="last">
+          <Text variant="sm">{t('details.receiver')}</Text>
+        </RowWrapper>
+
+        <div className={css({ height: '15px' })} />
+
+        <div
+          className={css({
+            width: '100%',
+            marginLeft: '20px',
+          })}
+        >
+          <Checkbox
+            size="sm"
+            isSelected={includeTranscript}
+            onChange={setIncludeTranscript}
+            isDisabled={statuses.isActive || isPendingToStart}
+          >
+            <Text variant="sm">{t('details.transcription')}</Text>
+          </Checkbox>
+        </div>
+      </VStack>
+      <ControlsButton
+        i18nKeyPrefix={keyPrefix}
+        handle={handleScreenRecording}
+        statuses={statuses}
+        isPendingToStart={isPendingToStart}
+        isPendingToStop={isPendingToStop}
+        openSidePanel={openTranscript}
+      />
+    </Div>
+  )
+}

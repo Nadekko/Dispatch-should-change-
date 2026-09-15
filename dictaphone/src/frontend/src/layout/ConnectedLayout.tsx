@@ -1,0 +1,67 @@
+import { MainLayout, Spinner } from '@gouvfr-lasuite/ui-kit'
+import LogoApp from '@/layout/LogoApp.tsx'
+import { HeaderRight } from '@/layout/HeaderRight.tsx'
+import { useUser } from '@/features/auth/api/useUser'
+import { Link, Redirect } from 'wouter'
+import { useTranslation } from 'react-i18next'
+import clsx from 'clsx'
+import { HelpMenu } from '@/layout/HelpMenu'
+import { usePageTitle } from '@/layout/usePageTitle'
+
+export default function ConnectedLayout({
+  children,
+  pageTitle,
+  readonly = false,
+  ...rest
+}: {
+  children: React.ReactNode
+  className?: string
+  pageTitle: string
+  readonly?: boolean
+}) {
+  const { t } = useTranslation('layout')
+  const user = useUser()
+  usePageTitle(pageTitle)
+
+  if (user.isLoading) {
+    return <Spinner />
+  }
+
+  if (!user.isLoggedIn) {
+    return <Redirect to="/" />
+  }
+
+  return (
+    <MainLayout
+      hideLeftPanelOnDesktop={true}
+      icon={
+        readonly ? (
+          <LogoApp variant="multiline" height={42} alt="" />
+        ) : (
+          <Link
+            to="/recordings"
+            aria-label={t('home')}
+            style={{ textDecoration: 'none' }}
+          >
+            <LogoApp variant="multiline" height={42} alt="" />
+          </Link>
+        )
+      }
+      rightHeaderContent={readonly ? <></> : <HeaderRight />}
+      isLeftPanelOpen={false}
+    >
+      <div
+        {...rest}
+        className={clsx(
+          'dictaphone__connected_layout_container',
+          rest.className
+        )}
+      >
+        <main className="dictaphone__connected_layout_content">{children}</main>
+      </div>
+      <div className="dictaphone__connected_layout_help_menu">
+        <HelpMenu />
+      </div>
+    </MainLayout>
+  )
+}

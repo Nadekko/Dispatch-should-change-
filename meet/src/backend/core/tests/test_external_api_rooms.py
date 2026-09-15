@@ -1,0 +1,2377 @@
+"""
+Tests for external API /room endpoint
+"""
+
+# pylint: disable=W0621,C0302
+
+import uuid
+from datetime import datetime, timedelta, timezone
+from unittest import mock
+
+from django.conf import settings
+
+import jwt
+import pytest
+import responses
+from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication
+from rest_framework.test import APIClient
+
+from core.analytics import AnalyticsEvent
+from core.factories import ApplicationFactory, RoomFactory, UserFactory
+from core.models import (
+    Application,
+    ApplicationScope,
+    RoleChoices,
+    Room,
+    RoomAccessLevel,
+    User,
+)
+from core.services.room_management import RoomManagement
+
+pytestmark = pytest.mark.django_db
+
+
+def generate_addons_test_token(user, scopes, **overrides):
+    """Generate a valid JWT token signed with the addons secret for testing."""
+    now = datetime.now(timezone.utc)
+    scope_string = " ".join(scopes)
+
+    payload = {
+        "iss": settings.ADDONS_TOKEN_ISSUER,
+        "aud": settings.ADDONS_TOKEN_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(seconds=settings.ADDONS_TOKEN_TTL),
+        "scope": scope_string,
+        "user_id": str(user.id),
+    }
+    payload.update(overrides)
+
+    return jwt.encode(
+        payload,
+        settings.ADDONS_TOKEN_SECRET_KEY,
+        algorithm=settings.ADDONS_TOKEN_ALG,
+    )
+
+
+def generate_test_token(user, scopes):
+    """Generate a valid JWT token for testing."""
+    now = datetime.now(timezone.utc)
+    scope_string = " ".join(scopes)
+
+    application = ApplicationFactory()
+
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(seconds=settings.APPLICATION_JWT_EXPIRATION_SECONDS),
+        "client_id": str(application.client_id),
+        "scope": scope_string,
+        "user_id": str(user.id),
+        "delegated": True,
+    }
+
+    return jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+
+def test_api_rooms_list_requires_authentication():
+    """Listing rooms without authentication should return 401."""
+    client = APIClient()
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+
+
+def test_api_rooms_list_inactive_user():
+    """List should return 401 if user is inactive."""
+
+    user1 = UserFactory(is_active=False)
+    RoomFactory(users=[(user1, RoleChoices.OWNER)])
+
+    token = generate_test_token(user1, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "user account is disabled" in str(response.data).lower()
+
+
+def test_api_rooms_list_with_valid_token():
+    """Listing rooms with valid token should succeed."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    # Generate valid token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["id"] == str(room.id)
+
+
+def test_api_rooms_list_with_no_rooms():
+    """Listing rooms with a valid token returns an empty list when there are no rooms."""
+
+    user = UserFactory()
+
+    # Generate valid token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 0
+    assert response.data["results"] == []
+
+
+def test_api_rooms_list_with_expired_token(settings):
+    """Listing rooms with expired token should return 401."""
+    settings.APPLICATION_JWT_EXPIRATION_SECONDS = 0
+
+    user = UserFactory()
+
+    # Generate expired token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "expired" in str(response.data).lower()
+
+
+@mock.patch.object(ResourceServerAuthentication, "authenticate", return_value=None)
+def test_api_rooms_list_with_application_disabled(mock_rs_authenticate, settings):
+    """Listing rooms should return 401 when application is disabled."""
+
+    settings.APPLICATION_ENABLED = False
+
+    user = UserFactory()
+
+    # Generate expired token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    mock_rs_authenticate.assert_called_once()
+
+
+@responses.activate
+def test_api_rooms_list_with_invalid_rs_token(settings):
+    """Listing rooms with invalid resource server token should return 400."""
+
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "active": False,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token-123")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    # Return 400 instead of 401 because ResourceServerAuthentication raises
+    # SuspiciousOperation when the introspected user is not active
+    assert response.status_code == 400
+
+
+def test_api_rooms_list_missing_scope():
+    """Listing rooms without required scope should return 403."""
+
+    user = UserFactory()
+
+    # Token without ROOMS_LIST scope
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 403
+    assert (
+        "insufficient permissions. required scope: rooms:list"
+        in str(response.data).lower()
+    )
+
+
+def test_api_rooms_list_no_scope():
+    """Listing rooms without any scope should return 403."""
+
+    user = UserFactory()
+
+    # Token without scope
+    token = generate_test_token(user, [])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 403
+    assert "insufficient permissions." in str(response.data).lower()
+
+
+def test_api_rooms_list_filters_by_user():
+    """List should only return rooms accessible to the authenticated user."""
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+
+    room1 = RoomFactory(users=[(user1, RoleChoices.OWNER)])
+    room2 = RoomFactory(users=[(user2, RoleChoices.OWNER)])
+    room3 = RoomFactory(users=[(user1, RoleChoices.MEMBER)])
+
+    token = generate_test_token(
+        user1, [ApplicationScope.ROOMS_LIST, ApplicationScope.ROOMS_CREATE]
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 2
+    returned_ids = [r["id"] for r in response.data["results"]]
+    assert str(room1.id) in returned_ids
+    assert str(room3.id) in returned_ids
+    assert str(room2.id) not in returned_ids
+
+
+def test_api_rooms_list_access_level_in_results():
+    """Rooms should include the correct access_level for each room."""
+    user = UserFactory()
+    room_trusted = RoomFactory(
+        users=[(user, RoleChoices.OWNER)], access_level=RoomAccessLevel.TRUSTED
+    )
+    room_restricted = RoomFactory(
+        users=[(user, RoleChoices.OWNER)], access_level=RoomAccessLevel.RESTRICTED
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    results = {r["id"]: r for r in response.data["results"]}
+    assert results[str(room_trusted.id)]["access_level"] == RoomAccessLevel.TRUSTED
+    assert (
+        results[str(room_restricted.id)]["access_level"] == RoomAccessLevel.RESTRICTED
+    )
+
+
+def test_api_rooms_list_does_not_expose_sensitive_fields():
+    """Rooms should not expose pin_code or accesses."""
+    user = UserFactory()
+    RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    result = response.data["results"][0]
+    assert "pin_code" not in result
+    assert "accesses" not in result
+    assert "livekit" not in result
+
+
+def test_api_rooms_list_expected_fields(settings):
+    """Rooms should expose exactly the expected fields."""
+
+    settings.APPLICATION_BASE_URL = "https://example.com"
+    settings.ROOM_TELEPHONY_ENABLED = True
+
+    user = UserFactory()
+    RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert set(response.data["results"][0].keys()) == {
+        "id",
+        "name",
+        "slug",
+        "access_level",
+        "configuration",
+        "telephony",
+        "url",
+    }
+
+
+def test_api_rooms_list_expected_fields_without_telephony(settings):
+    """Rooms shouldn't expose telephony related fields when disabled."""
+
+    settings.APPLICATION_BASE_URL = "https://example.com"
+    settings.ROOM_TELEPHONY_ENABLED = False
+
+    user = UserFactory()
+    RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert "telephony" not in set(response.data["results"][0].keys())
+
+
+def test_api_rooms_list_expected_fields_missing_base_url(settings):
+    """Rooms shouldn't expose URL field when the application base url is missing."""
+
+    settings.APPLICATION_BASE_URL = None
+
+    user = UserFactory()
+    RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert "url" not in set(response.data["results"][0].keys())
+
+
+def test_api_rooms_retrieve_requires_authentication():
+    """Retrieving rooms without authentication should return 401."""
+
+    user1 = UserFactory()
+    room1 = RoomFactory(users=[(user1, RoleChoices.OWNER)])
+
+    client = APIClient()
+    response = client.get(f"/external-api/v1.0/rooms/{room1.id}/")
+
+    assert response.status_code == 401
+
+
+def test_api_rooms_retrieve_inactive_user():
+    """Retrieve should return 401 if user is inactive."""
+
+    user1 = UserFactory(is_active=False)
+    room1 = RoomFactory(users=[(user1, RoleChoices.OWNER)])
+
+    token = generate_test_token(user1, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room1.id}/")
+
+    assert response.status_code == 401
+    assert "user account is disabled" in str(response.data).lower()
+
+
+def test_api_rooms_retrieve_with_expired_token(settings):
+    """Retrieving rooms with expired token should return 401."""
+    settings.APPLICATION_JWT_EXPIRATION_SECONDS = 0
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    # Generate expired token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 401
+    assert "expired" in str(response.data).lower()
+
+
+@responses.activate
+def test_api_rooms_retrieve_with_invalid_rs_token(settings):
+    """Retrieving rooms with invalid resource server token should return 400."""
+
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "active": False,
+        },
+    )
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token-123")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    # Return 400 instead of 401 because ResourceServerAuthentication raises
+    # SuspiciousOperation when the introspected user is not active
+    assert response.status_code == 400
+
+
+def test_api_rooms_retrieve_requires_scope():
+    """Retrieving a room requires ROOMS_RETRIEVE scope."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    # Token without ROOMS_RETRIEVE scope
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 403
+    assert "Insufficient permissions. Required scope: rooms:retrieve" in str(
+        response.data
+    )
+
+
+def test_api_rooms_retrieve_no_scope():
+    """Retrieving rooms without any scope should return 403."""
+
+    user = UserFactory()
+
+    # Token without scope
+    token = generate_test_token(user, [])
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 403
+    assert "insufficient permissions." in str(response.data).lower()
+
+
+def test_api_rooms_retrieve_success(settings):
+    """Retrieving a room with correct scope should succeed."""
+    settings.APPLICATION_BASE_URL = "http://your-application.com"
+    settings.ROOM_TELEPHONY_ENABLED = True
+    settings.ROOM_TELEPHONY_PHONE_NUMBER = "+1-555-0100"
+    settings.ROOM_TELEPHONY_DEFAULT_COUNTRY = "US"
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 200
+
+    assert response.data == {
+        "id": str(room.id),
+        "name": room.name,
+        "slug": room.slug,
+        "access_level": str(room.access_level),
+        "configuration": room.configuration,
+        "url": f"http://your-application.com/{room.slug}",
+        "telephony": {
+            "enabled": True,
+            "phone_number": "+1-555-0100",
+            "pin_code": room.pin_code,
+            "default_country": "US",
+        },
+    }
+
+
+def test_api_rooms_retrieve_success_by_user():
+    """Retrieve should only return rooms accessible to the authenticated user."""
+
+    user1 = UserFactory()
+    user2 = UserFactory()
+
+    room1 = RoomFactory(users=[(user1, RoleChoices.OWNER)])
+    room2 = RoomFactory(users=[(user2, RoleChoices.OWNER)])
+    room3 = RoomFactory(users=[(user1, RoleChoices.MEMBER)])
+    room4 = RoomFactory(users=[(user1, RoleChoices.ADMIN)])
+
+    token = generate_test_token(
+        user1, [ApplicationScope.ROOMS_RETRIEVE, ApplicationScope.ROOMS_LIST]
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room2.id}/")
+
+    assert response.status_code == 403
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room1.id}/")
+
+    assert response.status_code == 200
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room3.id}/")
+
+    assert response.status_code == 200
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room4.id}/")
+
+    assert response.status_code == 200
+
+
+def test_api_rooms_retrieve_not_found():
+    """Retrieving a non-existing room with correct scope should return a 404."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{uuid.uuid4()}/")
+
+    assert response.status_code == 404
+    assert "no room matches the given query." in str(response.data).lower()
+
+
+def test_api_rooms_create_requires_authentication():
+    """Creating rooms without authentication should return 401."""
+
+    client = APIClient()
+    response = client.post("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+
+
+def test_api_rooms_create_with_expired_token(settings):
+    """Creating rooms with expired token should return 401."""
+    settings.APPLICATION_JWT_EXPIRATION_SECONDS = 0
+
+    user = UserFactory()
+
+    # Generate expired token
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "expired" in str(response.data).lower()
+
+
+@responses.activate
+def test_api_rooms_create_with_invalid_rs_token(settings):
+    """Creating rooms with invalid resource server token should return 400."""
+
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "active": False,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token-123")
+    response = client.post("/external-api/v1.0/rooms/")
+
+    # Return 400 instead of 401 because ResourceServerAuthentication raises
+    # SuspiciousOperation when the introspected user is not active
+    assert response.status_code == 400
+
+
+def test_api_rooms_create_inactive_user():
+    """Create should return 401 if user is inactive."""
+
+    user1 = UserFactory(is_active=False)
+
+    token = generate_test_token(user1, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "user account is disabled" in str(response.data).lower()
+
+
+def test_api_rooms_create_requires_scope():
+    """Creating a room requires ROOMS_CREATE scope."""
+    user = UserFactory()
+
+    # Token without ROOMS_CREATE scope
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/", {}, format="json")
+
+    assert response.status_code == 403
+    assert (
+        "insufficient permissions. required scope: rooms:create"
+        in str(response.data).lower()
+    )
+
+
+def test_api_rooms_create_no_scope():
+    """Creating rooms without any scope should return 403."""
+
+    user = UserFactory()
+
+    # Token without scope
+    token = generate_test_token(user, [])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 403
+    assert "insufficient permissions." in str(response.data).lower()
+
+
+def test_api_rooms_create_success():
+    """Creating a room with correct scope should succeed."""
+
+    user = UserFactory()
+
+    token = generate_test_token(
+        user, [ApplicationScope.ROOMS_CREATE, ApplicationScope.ROOMS_LIST]
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/", {}, format="json")
+
+    assert response.status_code == 201
+    assert "id" in response.data
+    assert "slug" in response.data
+    assert "name" in response.data
+    assert response.data["name"] == response.data["slug"]
+    assert response.data["configuration"] == {}
+
+    # Verify room was created with user as owner
+    room = Room.objects.get(id=response.data["id"])
+    assert room.get_role(user) == RoleChoices.OWNER
+    assert room.access_level == "trusted"
+    assert room.configuration == {}
+
+
+def test_api_rooms_create_with_configuration_success():
+    """Creating a room with a validated configuration should succeed."""
+
+    user = UserFactory()
+
+    token = generate_test_token(
+        user, [ApplicationScope.ROOMS_CREATE, ApplicationScope.ROOMS_LIST]
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {
+            "access_level": RoomAccessLevel.RESTRICTED,
+            "configuration": {"can_publish_sources": ["camera"]},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    room = Room.objects.get(id=response.data["id"])
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    assert room.configuration == {"can_publish_sources": ["camera"]}
+    assert response.data["configuration"] == {"can_publish_sources": ["camera"]}
+
+
+def test_api_rooms_create_readonly_enforcement():
+    """Creating a room succeeds and any provided read-only fields are ignored."""
+
+    user = UserFactory()
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {
+            "id": "fake-id",
+            "slug": "fake-slug",
+            "name": "fake-name",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert "slug" in response.data
+    assert response.data["id"] != "fake-id"
+    assert "name" in response.data
+    assert response.data["slug"] != "fake-slug"
+    assert "id" in response.data
+    assert response.data["name"] != "fake-name"
+    assert response.data["configuration"] == {}
+
+    # Verify room was created with user as owner
+    room = Room.objects.get(id=response.data["id"])
+    assert room.get_role(user) == RoleChoices.OWNER
+    assert room.access_level == "trusted"
+    assert room.configuration == {}
+
+
+def test_api_rooms_create_rejects_invalid_configuration():
+    """Creating a room with unsupported configuration keys should fail."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {
+            "configuration": {
+                "unsupported_flag": True,
+            }
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "extra inputs are not permitted" in str(response.data).lower()
+
+
+@pytest.mark.parametrize(
+    "invalid_configuration",
+    [
+        {"can_publish_sources": ["invalid-source"]},
+        {"everyone_can_mute": "invalid-value"},
+    ],
+)
+def test_api_rooms_create_rejects_invalid_configuration_values(invalid_configuration):
+    """Creating a room with invalid configuration values should fail."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {"configuration": invalid_configuration},
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
+def test_api_rooms_create_public_access_disabled_by_default():
+    """Public rooms should be disabled for the external API by default."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {"access_level": RoomAccessLevel.PUBLIC},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "public rooms are disabled" in str(response.data).lower()
+
+
+def test_api_rooms_create_public_access_enabled_with_settings(settings):
+    """Public rooms should be creatable when explicitly enabled."""
+
+    settings.EXTERNAL_API_ALLOW_PUBLIC_ACCESS = True
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {"access_level": RoomAccessLevel.PUBLIC},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    room = Room.objects.get(id=response.data["id"])
+    assert room.access_level == RoomAccessLevel.PUBLIC
+    assert response.data["access_level"] == RoomAccessLevel.PUBLIC
+
+
+def test_api_rooms_create_default_access_level_respects_settings(settings):
+    """Room creation should reflect the EXTERNAL_API_DEFAULT_ACCESS_LEVEL setting."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.data["access_level"] == RoomAccessLevel.TRUSTED
+
+    settings.EXTERNAL_API_DEFAULT_ACCESS_LEVEL = "public"
+
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.data["access_level"] == RoomAccessLevel.PUBLIC
+
+
+def test_api_rooms_create_public_access_level_when_default_is_public(settings):
+    """Explicit public access_level is accepted when the default is already public."""
+    settings.EXTERNAL_API_ALLOW_PUBLIC_ACCESS = False
+    settings.EXTERNAL_API_DEFAULT_ACCESS_LEVEL = "public"
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    # No access_level in body — default kicks in, public room is created.
+    response = client.post("/external-api/v1.0/rooms/", {}, format="json")
+    assert response.status_code == 201
+    assert response.data["access_level"] == RoomAccessLevel.PUBLIC
+
+    # Explicit access_level=public in body — still rejected.
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {"access_level": RoomAccessLevel.PUBLIC},
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.data["access_level"] == RoomAccessLevel.PUBLIC
+
+
+@mock.patch("core.external_api.viewsets.analytics.capture")
+def test_api_rooms_create_tracks_analytics(mock_capture):
+    """Creating a room should emit a ROOM_CREATED analytics event."""
+
+    user = UserFactory()
+    token = generate_test_token(user, [ApplicationScope.ROOMS_CREATE])
+    application = Application.objects.get()
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post(
+        "/external-api/v1.0/rooms/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 201
+
+    mock_capture.assert_called_once()
+    captured_user, event, properties = mock_capture.call_args[0]
+
+    assert captured_user == user
+    assert event == AnalyticsEvent.ROOM_CREATED
+    assert properties == {
+        "room_id": response.data["id"],
+        "access_level": RoomAccessLevel.RESTRICTED,
+        "client_id": str(application.client_id),
+        "external_api": True,
+        "auth_method": "ApplicationJWTAuthentication",
+        "$set": {"email": user.email},
+    }
+
+
+def test_api_rooms_update_requires_authentication():
+    """Updating a room without authentication should return 401."""
+
+    room = RoomFactory(users=[(UserFactory(), RoleChoices.OWNER)])
+
+    client = APIClient()
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 401
+
+
+def test_api_rooms_update_requires_scope():
+    """Updating a room requires the ROOMS_UPDATE scope."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    # Token without ROOMS_UPDATE scope
+    token = generate_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert (
+        "insufficient permissions. required scope: rooms:update"
+        in str(response.data).lower()
+    )
+
+
+def test_api_rooms_update_no_scope():
+    """Updating a room without any scope should return 403."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert "insufficient permissions." in str(response.data).lower()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_owner_success(mock_update_metadata, settings):
+    """An owner should be able to update the access level and the configuration."""
+
+    settings.APPLICATION_BASE_URL = "http://your-application.com"
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+        configuration={},
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {
+            "access_level": RoomAccessLevel.RESTRICTED,
+            "configuration": {"everyone_can_mute": True},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["id"] == str(room.id)
+    assert response.data["access_level"] == RoomAccessLevel.RESTRICTED
+    assert response.data["configuration"] == {"everyone_can_mute": True}
+    assert response.data["url"] == f"http://your-application.com/{room.slug}"
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    assert room.configuration == {"everyone_can_mute": True}
+
+    mock_update_metadata.assert_called_once_with(
+        room_name=str(room.id),
+        metadata={
+            "configuration": {"everyone_can_mute": True},
+            "access_level": RoomAccessLevel.RESTRICTED,
+        },
+    )
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_replaces_configuration(mock_update_metadata):
+    """The configuration is replaced as a whole, it is not merged with the stored one."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        configuration={"can_publish_sources": ["camera"], "everyone_can_mute": True},
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"configuration": {"everyone_can_mute": False}},
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    # The keys missing from the payload are dropped, not kept.
+    assert response.data["configuration"] == {"everyone_can_mute": False}
+
+    room.refresh_from_db()
+    assert room.configuration == {"everyone_can_mute": False}
+
+    mock_update_metadata.assert_called_once_with(
+        room_name=str(room.id),
+        metadata={
+            "configuration": {"everyone_can_mute": False},
+            "access_level": room.access_level,
+        },
+    )
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_administrator_success(mock_update_metadata):
+    """An administrator should be able to update a room."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.ADMIN)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    mock_update_metadata.assert_called_once()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_put_not_allowed(mock_update_metadata):
+    """PUT is not exposed: full replacement is not supported, only PATCH is."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+        configuration={},
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.put(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {
+            "access_level": RoomAccessLevel.RESTRICTED,
+            "configuration": {"everyone_can_mute": True},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 405
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.TRUSTED
+    assert room.configuration == {}
+    mock_update_metadata.assert_not_called()
+
+
+@pytest.mark.parametrize("role", [RoleChoices.MEMBER, None])
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_without_privileges(mock_update_metadata, role):
+    """Members and users without any role should not be able to update a room."""
+
+    user = UserFactory()
+    users = [(user, role)] if role else []
+    room = RoomFactory(users=users, access_level=RoomAccessLevel.TRUSTED)
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.TRUSTED
+    mock_update_metadata.assert_not_called()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_readonly_enforcement(mock_update_metadata):
+    """Read-only fields provided on update should be ignored, the slug stays immutable."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+    expected_id, expected_name = str(room.id), room.name
+    expected_slug, expected_pin_code = room.slug, room.pin_code
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {
+            "id": str(uuid.uuid4()),
+            "name": "fake-name",
+            "slug": "fake-slug",
+            "pin_code": "000000",
+            "access_level": RoomAccessLevel.RESTRICTED,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["id"] == expected_id
+    assert response.data["name"] == expected_name
+    assert response.data["slug"] == expected_slug
+
+    room.refresh_from_db()
+    assert str(room.id) == expected_id
+    assert room.name == expected_name
+    assert room.slug == expected_slug
+    assert room.pin_code == expected_pin_code
+
+    # The one writable field in the payload was applied
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    mock_update_metadata.assert_called_once()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_rejects_invalid_configuration(mock_update_metadata):
+    """Updating a room with unsupported configuration keys should fail."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)], configuration={})
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"configuration": {"unsupported_flag": True}},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "extra inputs are not permitted" in str(response.data).lower()
+
+    room.refresh_from_db()
+    assert room.configuration == {}
+    mock_update_metadata.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "invalid_configuration",
+    [
+        {"can_publish_sources": ["invalid-source"]},
+        {"everyone_can_mute": "invalid-value"},
+    ],
+)
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_rejects_invalid_configuration_values(
+    mock_update_metadata, invalid_configuration
+):
+    """Updating a room with invalid configuration values should fail."""
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)], configuration={})
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"configuration": invalid_configuration},
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+    room.refresh_from_db()
+    assert room.configuration == {}
+    mock_update_metadata.assert_not_called()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_public_access_disabled_by_default(mock_update_metadata):
+    """Switching a room to public should be disabled for the external API by default."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.PUBLIC},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "public rooms are disabled" in str(response.data).lower()
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.TRUSTED
+    mock_update_metadata.assert_not_called()
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_public_access_enabled_with_settings(
+    mock_update_metadata, settings
+):
+    """Switching a room to public should be allowed when explicitly enabled."""
+
+    settings.EXTERNAL_API_ALLOW_PUBLIC_ACCESS = True
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.PUBLIC},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["access_level"] == RoomAccessLevel.PUBLIC
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.PUBLIC
+    mock_update_metadata.assert_called_once()
+
+
+@mock.patch("core.external_api.viewsets.analytics.capture")
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_unchanged_skips_livekit_sync(
+    mock_update_metadata, mock_capture
+):
+    """An update that changes nothing should not sync metadata nor report changes."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+        configuration={"everyone_can_mute": True},
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {
+            "access_level": RoomAccessLevel.TRUSTED,
+            "configuration": {"everyone_can_mute": True},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    mock_update_metadata.assert_not_called()
+
+    # The event is still emitted for auditing, but reports an empty delta.
+    _, _, properties = mock_capture.call_args[0]
+    assert properties["updated_fields"] == []
+
+
+@mock.patch("core.external_api.viewsets.analytics.capture")
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_tracks_analytics(mock_update_metadata, mock_capture):
+    """Updating a room should emit a ROOM_UPDATED analytics event."""
+
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+        configuration={},
+    )
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+    application = Application.objects.get()
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {
+            "access_level": RoomAccessLevel.RESTRICTED,
+            "configuration": {"everyone_can_mute": True},
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    mock_capture.assert_called_once()
+    captured_user, event, properties = mock_capture.call_args[0]
+
+    assert captured_user == user
+    assert event == AnalyticsEvent.ROOM_UPDATED
+    assert properties == {
+        "room_id": str(room.pk),
+        "access_level": RoomAccessLevel.RESTRICTED,
+        "updated_fields": ["access_level", "configuration"],
+        "previous_access_level": RoomAccessLevel.TRUSTED,
+        "client_id": str(application.client_id),
+        "external_api": True,
+        "auth_method": "ApplicationJWTAuthentication",
+        "$set": {"email": user.email},
+    }
+
+    mock_update_metadata.assert_called_once()
+
+
+def test_api_rooms_response_no_url(settings):
+    """Response should not include url field when APPLICATION_BASE_URL is None."""
+    settings.APPLICATION_BASE_URL = None
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 200
+    assert "url" not in response.data
+    assert response.data["id"] == str(room.id)
+
+
+def test_api_rooms_response_no_telephony(settings):
+    """Response should not include telephony field when ROOM_TELEPHONY_ENABLED is False."""
+    settings.ROOM_TELEPHONY_ENABLED = False
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 200
+    assert "telephony" not in response.data
+    assert response.data["id"] == str(room.id)
+
+
+def test_api_rooms_token_scope_case_insensitive(settings):
+    """Token's scope should be case-insensitive."""
+    user = UserFactory()
+    application = ApplicationFactory()
+
+    # Generate token with mixed-case scope "Rooms:List" to verify that scope
+    # validation is case-insensitive (should match "rooms:list")
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "scope": "Rooms:List",  # Mixed case - should be accepted as "rooms:list"
+        "user_id": str(user.id),
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+
+
+def test_api_rooms_token_without_delegated_flag(settings):
+    """Token without delegated flag should be rejected."""
+    user = UserFactory()
+    application = ApplicationFactory()
+
+    # Generate token without delegated flag
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "scope": "rooms:list",
+        "user_id": str(user.id),
+        "delegated": False,  # Not delegated
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token type." in str(response.data).lower()
+
+
+@mock.patch.object(ResourceServerAuthentication, "authenticate", return_value=None)
+def test_api_rooms_token_invalid_signature(mock_rs_authenticate, settings):
+    """Token signed with an invalid key should defer to the next authentication."""
+    user = UserFactory()
+    application = ApplicationFactory()
+
+    # Generate token without delegated flag
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "scope": "rooms:list",
+        "user_id": str(user.id),
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        "invalid-private-key-padded-to-32b!",
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    mock_rs_authenticate.assert_called()
+    assert response.status_code == 401
+
+
+@mock.patch.object(ResourceServerAuthentication, "authenticate", return_value=None)
+def test_api_rooms_token_invalid_alg(mock_rs_authenticate, settings):
+    """Token signed with an invalid alg should defer to the next authentication."""
+    settings.APPLICATION_JWT_ALG = "RS256"
+    user = UserFactory()
+
+    # Generate token without delegated flag
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": "test-client",
+        "scope": "rooms:list",
+        "user_id": str(user.id),
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm="HS256",  # different value
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    mock_rs_authenticate.assert_called()
+    assert response.status_code == 401
+
+
+def test_api_rooms_token_missing_client_id(settings):
+    """Token without client_id should be rejected."""
+    user = UserFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "scope": "rooms:list",
+        "user_id": str(user.id),
+        "delegated": True,
+        # Missing client_id
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token claims." in str(response.data).lower()
+
+
+def test_api_rooms_token_missing_user_id(settings):
+    """Token without user_id should be rejected."""
+    application = ApplicationFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "scope": "rooms:list",
+        "delegated": True,
+        # Missing user_id
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token claims." in str(response.data).lower()
+
+
+def test_api_rooms_token_invalid_audience(settings):
+    """Token with an invalid audience should be rejected."""
+    user = UserFactory()
+    application = ApplicationFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": "invalid-audience",
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "user_id": str(user.id),
+        "scope": "rooms:list",
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token." in str(response.data).lower()
+
+
+def test_api_rooms_token_unknown_user(settings):
+    """Token for unknown user should be rejected."""
+    application = ApplicationFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "user_id": str(uuid.uuid4()),
+        "scope": "rooms:list",
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "user not found." in str(response.data).lower()
+
+
+def test_api_rooms_token_unknown_application(settings):
+    """Token for unknown application should be rejected."""
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": "unknown-client-id",
+        "user_id": str(uuid.uuid4()),
+        "scope": "rooms:list",
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "application not found." in str(response.data).lower()
+
+
+def test_api_rooms_token_inactive_application(settings):
+    """Token for inactive application should be rejected."""
+    application = ApplicationFactory(is_active=False)
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.APPLICATION_JWT_ISSUER,
+        "aud": settings.APPLICATION_JWT_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "client_id": str(application.client_id),
+        "user_id": str(uuid.uuid4()),
+        "scope": "rooms:list",
+        "delegated": True,
+    }
+    token = jwt.encode(
+        payload,
+        settings.APPLICATION_JWT_SECRET_KEY,
+        algorithm=settings.APPLICATION_JWT_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "application is disabled." in str(response.data).lower()
+
+
+# ==============================
+# Resource Server
+# ==============================
+
+
+@responses.activate
+def test_resource_server_creates_user_on_first_authentication(settings):
+    """New user should be created during first authentication.
+
+    Verifies that the ResourceServerBackend.get_or_create_user() creates a user
+    in the database when authenticating with a token from an unknown subject (sub).
+    This tests the user creation workflow during the OIDC introspection process.
+    """
+
+    with pytest.raises(
+        User.DoesNotExist,
+        match="User matching query does not exist.",
+    ):
+        User.objects.get(sub="very-specific-sub")
+
+    assert (
+        settings.OIDC_RS_BACKEND_CLASS
+        == "core.external_api.authentication.ResourceServerBackend"
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_SCOPES_PREFIX = "lasuite_meet"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet lasuite_meet:rooms:list",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+
+    results = response.json()["results"]
+    assert len(results) == 0
+
+    db_user = User.objects.get(sub="very-specific-sub")
+    assert db_user is not None
+    assert db_user.email is None
+
+
+@responses.activate
+def test_resource_server_skips_user_creation_when_auto_creation_disabled(settings):
+    """Verify that ResourceServerBackend respects the user auto-creation setting.
+
+    This ensures that the OIDC introspection process respects the configuration flag
+    that controls whether new users should be automatically provisioned during
+    authentication, preventing unwanted user proliferation when auto-creation is
+    explicitly disabled.
+    """
+
+    settings.OIDC_CREATE_USER = False
+
+    with pytest.raises(
+        User.DoesNotExist,
+        match="User matching query does not exist.",
+    ):
+        User.objects.get(sub="very-specific-sub")
+
+    assert (
+        settings.OIDC_RS_BACKEND_CLASS
+        == "core.external_api.authentication.ResourceServerBackend"
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet rooms:list",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+
+
+@responses.activate
+def test_resource_server_authentication_successful(settings):
+    """Authenticated requests should be processed and user-specific data is returned.
+
+    Verifies that once a user is authenticated via OIDC token introspection,
+    the API correctly identifies the user and returns only data accessible to that user
+    (e.g., rooms with appropriate access levels).
+    """
+
+    user = UserFactory(sub="very-specific-sub")
+
+    other_user = UserFactory()
+
+    RoomFactory(access_level=RoomAccessLevel.PUBLIC)
+    RoomFactory(access_level=RoomAccessLevel.TRUSTED)
+    RoomFactory(access_level=RoomAccessLevel.RESTRICTED)
+    room_user_accesses = RoomFactory(
+        access_level=RoomAccessLevel.RESTRICTED, users=[user]
+    )
+    RoomFactory(access_level=RoomAccessLevel.RESTRICTED, users=[other_user])
+
+    assert (
+        settings.OIDC_RS_BACKEND_CLASS
+        == "core.external_api.authentication.ResourceServerBackend"
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_SCOPES_PREFIX = "lasuite_meet"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet lasuite_meet:rooms:list lasuite_meet:rooms:retrieve",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 1
+    expected_ids = {
+        str(room_user_accesses.id),
+    }
+    results_id = {result["id"] for result in results}
+    assert expected_ids == results_id
+
+
+@responses.activate
+def test_resource_server_authentication_successful_when_application_disabled(settings):
+    """Resource server should keep working when the application auth backend is disabled."""
+
+    settings.APPLICATION_ENABLED = False
+
+    user = UserFactory(sub="very-specific-sub")
+    other_user = UserFactory()
+
+    RoomFactory(access_level=RoomAccessLevel.PUBLIC)
+    RoomFactory(access_level=RoomAccessLevel.TRUSTED)
+    RoomFactory(access_level=RoomAccessLevel.RESTRICTED)
+    room_user_accesses = RoomFactory(
+        access_level=RoomAccessLevel.RESTRICTED, users=[user]
+    )
+    RoomFactory(access_level=RoomAccessLevel.RESTRICTED, users=[other_user])
+
+    assert (
+        settings.OIDC_RS_BACKEND_CLASS
+        == "core.external_api.authentication.ResourceServerBackend"
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_SCOPES_PREFIX = "lasuite_meet"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet lasuite_meet:rooms:list lasuite_meet:rooms:retrieve",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 1
+    expected_ids = {str(room_user_accesses.id)}
+    results_id = {result["id"] for result in results}
+    assert expected_ids == results_id
+
+
+@responses.activate
+def test_resource_server_denies_access_with_insufficient_scopes(settings):
+    """Requests should be denied when the token lacks required scopes.
+
+    Verifies that the ResourceServerBackend validates token scopes during introspection
+    and returns 403 Forbidden when the token is missing required scopes for the endpoint.
+    """
+
+    assert (
+        settings.OIDC_RS_BACKEND_CLASS
+        == "core.external_api.authentication.ResourceServerBackend"
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet",  # missing rooms:list scope
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 403
+
+
+@responses.activate
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_resource_server_updates_room_with_prefixed_scope(
+    mock_update_metadata, settings
+):
+    """A resource server token carrying the prefixed update scope should be accepted."""
+
+    user = UserFactory(sub="very-specific-sub")
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_SCOPES_PREFIX = "lasuite_meet"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet lasuite_meet:rooms:update",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    mock_update_metadata.assert_called_once()
+
+
+@responses.activate
+def test_resource_server_denies_room_update_without_update_scope(settings):
+    """A resource server token without the update scope should be denied."""
+
+    user = UserFactory(sub="very-specific-sub")
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    settings.OIDC_RS_CLIENT_ID = "some_client_id"
+    settings.OIDC_RS_CLIENT_SECRET = "some_client_secret"
+    settings.OIDC_RS_SCOPES_PREFIX = "lasuite_meet"
+
+    settings.OIDC_OP_URL = "https://oidc.example.com"
+    settings.OIDC_VERIFY_SSL = False
+    settings.OIDC_TIMEOUT = 5
+    settings.OIDC_PROXY = None
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://oidc.example.com/jwks"
+    settings.OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.example.com/introspect"
+
+    responses.add(
+        responses.POST,
+        "https://oidc.example.com/introspect",
+        json={
+            "iss": "https://oidc.example.com",
+            "aud": "some_client_id",  # settings.OIDC_RS_CLIENT_ID
+            "sub": "very-specific-sub",
+            "client_id": "some_service_provider",
+            "scope": "openid lasuite_meet lasuite_meet:rooms:retrieve",
+            "active": True,
+        },
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION="Bearer some_token")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.TRUSTED
+
+
+# ==============================
+# Addons
+# ==============================
+
+
+def test_api_rooms_list_with_valid_addons_token():
+    """Listing rooms with a valid addons token should succeed."""
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["id"] == str(room.id)
+
+
+def test_api_rooms_retrieve_with_valid_addons_token():
+    """Retrieving a room with a valid addons token should succeed."""
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_RETRIEVE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get(f"/external-api/v1.0/rooms/{room.id}/")
+
+    assert response.status_code == 200
+    assert response.data["id"] == str(room.id)
+
+
+def test_api_rooms_create_with_valid_addons_token():
+    """Creating a room with a valid addons token should succeed."""
+    user = UserFactory()
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.post("/external-api/v1.0/rooms/", {}, format="json")
+
+    assert response.status_code == 201
+    room = Room.objects.get(id=response.data["id"])
+    assert room.get_role(user) == RoleChoices.OWNER
+
+
+@mock.patch.object(RoomManagement, "update_metadata")
+def test_api_rooms_update_with_valid_addons_token(mock_update_metadata):
+    """Updating a room with a valid addons token should succeed."""
+    user = UserFactory()
+    room = RoomFactory(
+        users=[(user, RoleChoices.OWNER)],
+        access_level=RoomAccessLevel.TRUSTED,
+    )
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_UPDATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.patch(
+        f"/external-api/v1.0/rooms/{room.id}/",
+        {"access_level": RoomAccessLevel.RESTRICTED},
+        format="json",
+    )
+
+    assert response.status_code == 200
+
+    room.refresh_from_db()
+    assert room.access_level == RoomAccessLevel.RESTRICTED
+    mock_update_metadata.assert_called_once()
+
+
+def test_api_rooms_addons_token_inactive_user():
+    """Addons token for an inactive user should return 401."""
+    user = UserFactory(is_active=False)
+    RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "user account is disabled" in str(response.data).lower()
+
+
+def test_api_rooms_addons_token_expired(settings):
+    """Listing rooms with an expired addons token should return 401."""
+    settings.ADDONS_TOKEN_TTL = 0
+
+    user = UserFactory()
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "expired" in str(response.data).lower()
+
+
+def test_api_rooms_addons_token_missing_user_id(settings):
+    """Addons token without user_id should be rejected."""
+
+    # Re-encode without user_id
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.ADDONS_TOKEN_ISSUER,
+        "aud": settings.ADDONS_TOKEN_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "scope": "rooms:list",
+        # no user_id
+    }
+    token = jwt.encode(
+        payload,
+        settings.ADDONS_TOKEN_SECRET_KEY,
+        algorithm=settings.ADDONS_TOKEN_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token claims." in str(response.data).lower()
+
+
+def test_api_rooms_addons_token_invalid_audience(settings):
+    """Addons token with an invalid audience should be rejected."""
+    user = UserFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.ADDONS_TOKEN_ISSUER,
+        "aud": "invalid-audience",
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "user_id": str(user.id),
+        "scope": "rooms:list",
+    }
+    token = jwt.encode(
+        payload,
+        settings.ADDONS_TOKEN_SECRET_KEY,
+        algorithm=settings.ADDONS_TOKEN_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "invalid token." in str(response.data).lower()
+
+
+def test_api_rooms_addons_token_unknown_user(settings):
+    """Addons token for an unknown user should be rejected."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.ADDONS_TOKEN_ISSUER,
+        "aud": settings.ADDONS_TOKEN_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "user_id": str(uuid.uuid4()),
+        "scope": "rooms:list",
+    }
+    token = jwt.encode(
+        payload,
+        settings.ADDONS_TOKEN_SECRET_KEY,
+        algorithm=settings.ADDONS_TOKEN_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 401
+    assert "user not found." in str(response.data).lower()
+
+
+def test_api_rooms_addons_token_missing_scope():
+    """Addons token without required scope should return 403."""
+    user = UserFactory()
+
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_CREATE])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 403
+    assert (
+        "insufficient permissions. required scope: rooms:list"
+        in str(response.data).lower()
+    )
+
+
+@mock.patch.object(ResourceServerAuthentication, "authenticate", return_value=None)
+def test_api_rooms_addons_token_invalid_signature(mock_rs_authenticate, settings):
+    """Addons token signed with a wrong key should defer to the next authentication."""
+    user = UserFactory()
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": settings.ADDONS_TOKEN_ISSUER,
+        "aud": settings.ADDONS_TOKEN_AUDIENCE,
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "user_id": str(user.id),
+        "scope": "rooms:list",
+    }
+    token = jwt.encode(
+        payload,
+        "invalid-private-key-padded-to-32b!",
+        algorithm=settings.ADDONS_TOKEN_ALG,
+    )
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    mock_rs_authenticate.assert_called()
+    assert response.status_code == 401
+
+
+@mock.patch.object(ResourceServerAuthentication, "authenticate", return_value=None)
+def test_api_rooms_addons_disabled_defers_to_next_backend(
+    mock_rs_authenticate, settings
+):
+    """When ADDONS_ENABLED is False, a valid addons token should defer to the next backend."""
+    settings.ADDONS_ENABLED = False
+
+    user = UserFactory()
+    token = generate_addons_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    mock_rs_authenticate.assert_called()
+    assert response.status_code == 401
+
+
+def test_api_rooms_addons_disabled_does_not_break_application_auth(settings):
+    """Disabling addons auth should not affect ApplicationJWTAuthentication."""
+    settings.ADDONS_ENABLED = False
+
+    user = UserFactory()
+    room = RoomFactory(users=[(user, RoleChoices.OWNER)])
+
+    # Use the existing application token helper — that backend should still work
+    token = generate_test_token(user, [ApplicationScope.ROOMS_LIST])
+
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    response = client.get("/external-api/v1.0/rooms/")
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["id"] == str(room.id)

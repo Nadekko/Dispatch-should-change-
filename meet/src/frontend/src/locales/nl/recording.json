@@ -1,0 +1,28 @@
+{
+  "error": {
+    "title": "Opname niet beschikbaar",
+    "body": "De opname is niet beschikbaar of is mogelijk verwijderd. Alleen de host van de vergadering heeft toegang. Neem gerust contact met hem of haar op als dat nodig is."
+  },
+  "expired": {
+    "title": "Opname verlopen",
+    "body": "Deze opname is verwijderd op {{date}}."
+  },
+  "authentication": {
+    "title": "Authenticatie vereist",
+    "body": "Log in om toegang te krijgen tot deze opname."
+  },
+  "unsaved": {
+    "title": "Download niet beschikbaar",
+    "body": "Deze opname is nog niet klaar om te worden gedownload. Probeer het later opnieuw."
+  },
+  "success": {
+    "title": "Je opname is klaar!",
+    "body": "Opname van de vergadering {{room}} op {{created_at}}.",
+    "expiration": "Let op, deze opname verloopt na {{expiration_days}} dag(en).",
+    "button": "Downloaden",
+    "warning": {
+      "title": "Delen via link uitgeschakeld",
+      "body": "Het delen van de opname via een link is nog niet beschikbaar. Alleen hosts kunnen deze downloaden."
+    }
+  }
+}
