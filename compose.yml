@@ -1,0 +1,7 @@
+name: lasuite-interop
+
+include:
+  - path: compose.shared.yml
+  - path: compose.docs.yml
+  - path: compose.meet.yml
+  - path: compose.dictaphone.yml

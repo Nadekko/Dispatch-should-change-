@@ -1,0 +1,170 @@
+services:
+  meet-app:
+    build:
+      context: ./meet
+      target: backend-development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: lasuite-interop/meet-backend:development
+    environment:
+      PYLINTHOME: /app/.pylint.d
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/meet
+      - env/postgresql
+    ports:
+      - "8072:8000"
+    volumes:
+      - ./meet/src/backend:/app
+      - ./data/meet-static:/data/static
+      - /app/.venv
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailcatcher:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "127.0.0.1.nip.io:host-gateway"
+
+  meet-celery:
+    image: lasuite-interop/meet-backend:development
+    user: ${DOCKER_USER:-1000}
+    command: ["celery", "-A", "meet.celery_app", "worker", "-l", "DEBUG", "--pool=solo"]
+    environment:
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/meet
+      - env/postgresql
+    volumes:
+      - ./meet/src/backend:/app
+      - ./data/meet-static:/data/static
+      - /app/.venv
+    depends_on:
+      - meet-app
+
+  meet-frontend:
+    user: ${DOCKER_USER:-1000}
+    build:
+      context: ./meet
+      dockerfile: ./src/frontend/Dockerfile
+      target: frontend-production
+      args:
+        VITE_API_BASE_URL: "http://localhost:8072"
+        VITE_APP_TITLE: "LaSuite Meet"
+    image: lasuite-interop/meet-frontend:development
+    ports:
+      - "3001:8080"
+
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    entrypoint: /livekit-server --dev --bind 0.0.0.0 --config ./config.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+      - "3478:3478/udp"
+      - "30000-30100:30000-30100/udp"
+    volumes:
+      - ./docker/livekit/livekit-server.yaml:/config.yaml:ro
+    extra_hosts:
+      - "127.0.0.1.nip.io:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      livekit-egress:
+        condition: service_started
+
+  livekit-egress:
+    image: livekit/egress:v1.11.0
+    environment:
+      EGRESS_CONFIG_FILE: ./livekit-egress.yaml
+    volumes:
+      - ./docker/livekit/livekit-egress.yaml:/livekit-egress.yaml:ro
+      - ./data/livekit-out:/out
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  meet-metadata-collector:
+    build:
+      context: ./meet/src/agents
+      target: development
+    user: ${DOCKER_USER:-1000}
+    command: ["python", "metadata_collector.py", "dev"]
+    env_file:
+      - env/metadata-collector
+    volumes:
+      - ./meet/src/agents:/app
+      - /app/.venv
+    depends_on:
+      - livekit
+      - minio
+
+  summary:
+    build:
+      context: ./meet/src/summary
+      target: development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: lasuite-interop/summary:development
+    env_file:
+      - path: env/summary
+      - path: env/summary.local
+        required: false
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./meet/src/summary:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  summary-transcribe:
+    image: lasuite-interop/summary:development
+    user: ${DOCKER_USER:-1000}
+    command: celery -A summary.core.celery_worker worker --pool=solo --loglevel=debug -Q transcribe-queue-v2
+    env_file:
+      - path: env/summary
+      - path: env/summary.local
+        required: false
+    volumes:
+      - ./meet/src/summary:/app
+    depends_on:
+      - summary
+      - minio
+      - redis
+
+  summary-summarize:
+    image: lasuite-interop/summary:development
+    user: ${DOCKER_USER:-1000}
+    command: celery -A summary.core.celery_worker worker --pool=solo --loglevel=debug -Q summarize-queue-v2
+    env_file:
+      - path: env/summary
+      - path: env/summary.local
+        required: false
+    volumes:
+      - ./meet/src/summary:/app
+    depends_on:
+      - summary
+      - minio
+      - redis
+
+  summary-webhook:
+    image: lasuite-interop/summary:development
+    user: ${DOCKER_USER:-1000}
+    command: celery -A summary.core.celery_worker worker --pool=solo --loglevel=debug -Q call-webhook-queue-v2
+    env_file:
+      - path: env/summary
+      - path: env/summary.local
+        required: false
+    volumes:
+      - ./meet/src/summary:/app
+    depends_on:
+      - summary
+      - redis

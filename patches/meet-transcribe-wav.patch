@@ -1,0 +1,119 @@
+diff --git a/src/summary/summary/core/celery_worker.py b/src/summary/summary/core/celery_worker.py
+index 4d37ad1..0cd66c8 100644
+--- a/src/summary/summary/core/celery_worker.py
++++ b/src/summary/summary/core/celery_worker.py
+@@ -3,6 +3,9 @@
+ # ruff: noqa: PLR0913
+ 
+ import json
++import os
++import subprocess
++import tempfile
+ import time
+ from datetime import datetime, timezone
+ from typing import Any
+@@ -86,6 +89,37 @@ if settings.sentry_dsn and settings.sentry_is_enabled:
+ file_service = FileService()
+ 
+ 
++def _transcode_to_wav(audio_file) -> str:
++    """Re-encode audio to 16 kHz mono WAV for OpenAI-compatible STT backends."""
++    source = getattr(audio_file, "name", None)
++    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
++        output_path = tmp.name
++
++    command = [
++        "ffmpeg",
++        "-y",
++        "-i",
++        str(source) if source else "pipe:0",
++        "-ac",
++        "1",
++        "-ar",
++        "16000",
++        output_path,
++    ]
++    try:
++        if source:
++            subprocess.run(command, check=True, capture_output=True)
++        else:
++            subprocess.run(
++                command, check=True, input=audio_file.read(), capture_output=True
++            )
++    except subprocess.CalledProcessError as exc:
++        os.remove(output_path)
++        stderr = (exc.stderr or b"").decode(errors="replace")
++        raise CorruptedAudioFile(f"ffmpeg failed: {stderr}") from exc
++    return output_path
++
++
+ def transcribe_audio(
+     *,
+     task_id: str,
+@@ -139,19 +173,23 @@ def transcribe_audio(
+             # At the same time "diarized_json" should be the value
+             # provided to STT endpoints in our context.
+             url = urljoin(base_url.rstrip("/") + "/", "audio/transcriptions")
+-            res = requests.post(
+-                url,
+-                data={
+-                    "model": settings.whisperx_asr_model,
+-                    "language": language,
+-                    "timestamp_granularities": ["word", "segment"],
+-                    "response_format": "diarized_json",
+-                },
+-                files={"file": audio_file},
+-                headers={"Authorization": f"Bearer {api_key}"},
+-                # Mimic OpenAI's timeout settings
+-                timeout=(60, 10 * 60),
+-            )
++            # Albert documents mp3/wav only. Dictaphone recordings are ogg/webm.
++            wav_path = _transcode_to_wav(audio_file)
++            try:
++                with open(wav_path, "rb") as wav_file:
++                    res = requests.post(
++                        url,
++                        data={
++                            "model": settings.whisperx_asr_model,
++                            "language": language,
++                            "response_format": "diarized_json",
++                        },
++                        files={"file": ("audio.wav", wav_file, "audio/wav")},
++                        headers={"Authorization": f"Bearer {api_key}"},
++                        timeout=(60, 10 * 60),
++                    )
++            finally:
++                os.remove(wav_path)
+             if res.status_code == 400:
+                 logger.info(
+                     "WhisperX transcription failed, "
+@@ -163,8 +201,11 @@ def transcribe_audio(
+             try:
+                 res.raise_for_status()
+             except requests.exceptions.HTTPError:
+-                logger.exception("WhisperX transcription failed")
+-                # We reraise the error so that it can be retried by celery
++                logger.exception(
++                    "WhisperX transcription failed: HTTP %s %s",
++                    res.status_code,
++                    res.text,
++                )
+                 raise
+ 
+             transcription_json: dict[str, Any] = res.json()
+@@ -172,6 +213,15 @@ def transcribe_audio(
+             # as it may cause issues with parsing inside the Transcription model
+             # Some API don't share the exact same structure for the "usage" key
+             transcription_json.pop("usage", None)
++            # Albert json responses omit segments; WhisperXResponse requires them.
++            if not transcription_json.get("segments"):
++                transcription_json["segments"] = [
++                    {
++                        "start": 0.0,
++                        "end": float(metadata.get("duration") or 0.0),
++                        "text": transcription_json.get("text") or "",
++                    }
++                ]
+ 
+             # We force the use of the Transcription model here
+             # to avoid changing too much code for now.

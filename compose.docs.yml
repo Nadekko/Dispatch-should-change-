@@ -1,0 +1,121 @@
+services:
+  docs-app:
+    build:
+      context: ./docs
+      target: backend-development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: lasuite-interop/docs-backend:development
+    environment:
+      PYLINTHOME: /app/.pylint.d
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/docs
+      - env/postgresql
+    ports:
+      - "8071:8000"
+    volumes:
+      - ./docs/src/backend:/app
+      - ./data/docs-static:/data/static
+      - /app/.venv
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailcatcher:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "127.0.0.1.nip.io:host-gateway"
+
+  docs-celery:
+    image: lasuite-interop/docs-backend:development
+    user: ${DOCKER_USER:-1000}
+    command: ["celery", "-A", "impress.celery_app", "worker", "-l", "DEBUG"]
+    environment:
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/docs
+      - env/postgresql
+    volumes:
+      - ./docs/src/backend:/app
+      - ./data/docs-static:/data/static
+      - /app/.venv
+    depends_on:
+      - docs-app
+
+  docs-frontend:
+    user: ${DOCKER_USER:-1000}
+    build:
+      context: ./docs
+      dockerfile: ./src/frontend/Dockerfile
+      target: impress-dev
+      args:
+        API_ORIGIN: "http://localhost:8071"
+        PUBLISH_AS_MIT: "false"
+        SW_DEACTIVATED: "true"
+    image: lasuite-interop/docs-frontend:development
+    volumes:
+      - ./docs/src/frontend:/home/frontend
+      - /home/frontend/node_modules
+      - /home/frontend/apps/impress/node_modules
+    expose:
+      - "3000"
+    environment:
+      NEXT_PUBLIC_API_ORIGIN: http://localhost:8071
+    command: ["yarn", "dev", "-H", "0.0.0.0", "-p", "3000"]
+
+  docs-proxy:
+    image: nginx:1.25
+    ports:
+      - "3000:80"
+    volumes:
+      - ./docker/nginx/docs-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - docs-frontend
+      - docs-app
+      - docs-y-provider
+
+  docs-y-provider:
+    user: ${DOCKER_USER:-1000}
+    build:
+      context: ./docs
+      dockerfile: ./src/frontend/servers/y-provider/Dockerfile
+      target: y-provider-development
+    image: lasuite-interop/docs-y-provider:development
+    restart: unless-stopped
+    env_file:
+      - env/docs
+    ports:
+      - "4444:4444"
+    volumes:
+      - ./docs/src/frontend:/home/frontend
+      - /home/frontend/node_modules
+      - /home/frontend/servers/y-provider/node_modules
+
+  docs-y-provider-converter:
+    user: ${DOCKER_USER:-1000}
+    image: lasuite-interop/docs-y-provider:development
+    restart: unless-stopped
+    # Start from the already-built dist. Sharing a bind-mounted dist with
+    # docs-y-provider and running `yarn dev` in both races tsc and crashes.
+    command: ["yarn", "start"]
+    env_file:
+      - env/docs
+    volumes:
+      - ./docs/src/frontend:/home/frontend
+      - /home/frontend/node_modules
+      - /home/frontend/servers/y-provider/node_modules
+    depends_on:
+      docs-y-provider:
+        condition: service_started
+
+  docs-docspec:
+    # Upstream image is amd64-only; on Apple Silicon Docker runs it via Rosetta/QEMU.
+    image: ghcr.io/docspec/api:1.21.4
+    platform: linux/amd64
+    ports:
+      - "4000:3000"

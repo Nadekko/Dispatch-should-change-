@@ -1,0 +1,104 @@
+services:
+  dictaphone-app:
+    build:
+      context: ./dictaphone
+      target: backend-development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: lasuite-interop/dictaphone-backend:development
+    environment:
+      PYLINTHOME: /app/.pylint.d
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/dictaphone
+      - env/postgresql
+    ports:
+      - "8073:8000"
+    volumes:
+      - ./dictaphone/src/backend:/app
+      - ./data/dictaphone-static:/data/static
+      - /app/.venv
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailcatcher:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "127.0.0.1.nip.io:host-gateway"
+      - "localhost:host-gateway"
+
+  dictaphone-celery:
+    image: lasuite-interop/dictaphone-backend:development
+    user: ${DOCKER_USER:-1000}
+    command:
+      [
+        "celery",
+        "-A",
+        "dictaphone.celery_app",
+        "worker",
+        "-l",
+        "DEBUG",
+        "--concurrency=1",
+        "-Q",
+        "dictaphone-backend",
+      ]
+    environment:
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/dictaphone
+      - env/postgresql
+    volumes:
+      - ./dictaphone/src/backend:/app
+      - ./data/dictaphone-static:/data/static
+      - /app/.venv
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      - dictaphone-app
+
+  dictaphone-celery-audio:
+    image: lasuite-interop/dictaphone-backend:development
+    user: ${DOCKER_USER:-1000}
+    command:
+      [
+        "celery",
+        "-A",
+        "dictaphone.celery_app",
+        "worker",
+        "-l",
+        "DEBUG",
+        "--concurrency=1",
+        "-Q",
+        "dictaphone-audio",
+      ]
+    environment:
+      DJANGO_CONFIGURATION: Development
+    env_file:
+      - env/dictaphone
+      - env/postgresql
+    volumes:
+      - ./dictaphone/src/backend:/app
+      - ./data/dictaphone-static:/data/static
+      - /app/.venv
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      - dictaphone-app
+
+  dictaphone-frontend:
+    user: ${DOCKER_USER:-1000}
+    build:
+      context: ./dictaphone
+      dockerfile: ./src/frontend/Dockerfile
+      target: frontend-production
+      args:
+        VITE_API_BASE_URL: "http://localhost:8073"
+        VITE_APP_TITLE: "Assistant Transcripts"
+    image: lasuite-interop/dictaphone-frontend:development
+    ports:
+      - "3002:8080"
