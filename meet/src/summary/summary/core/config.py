@@ -113,6 +113,25 @@ class Settings(BaseSettings):
     acronym_correction_top_k: int = 10
     acronym_correction_min_similarity: float = 0.62
 
+    # Speaker attribution from spoken name cues: the fallback used when the
+    # VAD metadata above is missing or unreadable, which is the common case
+    # (both collection gates default to off, and Dictaphone never has any).
+    is_resolve_speaker_cues_enabled: bool = True
+    resolve_speaker_cues_confidence_threshold: float = 0.6
+    # "regex" matches a closed list of templates and costs nothing. "llm"
+    # reads the sentence and recovers more, but then every transcript costs
+    # model calls, so regex is the default.
+    resolve_speaker_cues_detector: str = "regex"
+    # Hard ceiling on model calls for ONE transcript, so a pathological
+    # segmentation cannot scale without bound (~45 calls per meeting hour).
+    resolve_speaker_cues_max_llm_calls: int = 400
+    resolve_speaker_cues_llm_batch_size: int = 12
+    # How close a mangled span must be to a roster name to count as that name.
+    resolve_speaker_cues_fuzzy_threshold: float = 0.75
+    # Accept a self-identification whose name is not on the attendee list (a
+    # late joiner). Turn off to never emit a name that is not an invitee.
+    resolve_speaker_cues_allow_unknown_self_id: bool = True
+
     # Webhook-related settings
     webhook_max_retries: int = 2
     webhook_status_forcelist: List[int] = [502, 503, 504]
@@ -169,6 +188,23 @@ class Settings(BaseSettings):
 
         if len(api_keys) != len(self.authorized_tenants):
             raise ValueError("Duplicate application API api_keys are not allowed")
+        return self
+
+    @model_validator(mode="after")
+    def validate_speaker_cues_detector(self):
+        """Validate the cue detector name.
+
+        Caught at startup rather than per task: the resolver raises on an
+        unknown detector, and the worker logs and skips speaker assignment on
+        any error, so a typo here would silently disable the feature instead
+        of failing.
+        """
+        allowed = ("regex", "llm")
+        if self.resolve_speaker_cues_detector not in allowed:
+            raise ValueError(
+                f"resolve_speaker_cues_detector must be one of {allowed}, got"
+                f" '{self.resolve_speaker_cues_detector}'"
+            )
         return self
 
     @model_validator(mode="after")
