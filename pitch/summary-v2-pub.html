@@ -1,0 +1,245 @@
+<title>Summary v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Libre+Franklin:ital,wght@0,400;0,600;0,800;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --bleu:#000091;        /* Bleu France */
+    --rouge:#E1000F;       /* Rouge Marianne */
+    --blanc:#ffffff;
+    --ground:#e9ebf2;      /* neutre légèrement biaisé bleu */
+    --nuit:#070733;        /* letterbox de projection */
+    --ink:#14142b;
+    --grisaille:#9b978d;   /* le gris terne du "avant" */
+    --papier-avant:#d9d6cd;
+    --tache:#8a7a5c;       /* couleur "tache" sur le charabia */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--nuit);
+    color:var(--ink);
+    font-family:"Libre Franklin",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{
+    min-height:100vh;
+    display:grid;place-items:center;
+    padding:16px;
+    background:
+      radial-gradient(120% 120% at 50% -10%, #1a1a6b 0%, var(--nuit) 60%);
+  }
+  /* Plateau 16:9, aussi grand que possible tout en restant entièrement visible */
+  .board{
+    width:min(100%, calc((100vh - 32px) * 16 / 9));
+    aspect-ratio:16/9;
+    container-type:size;
+    position:relative;
+    background:var(--ground);
+    border-radius:.6cqw;
+    overflow:hidden;
+    box-shadow:0 2.4cqh 6cqh rgba(0,0,0,.55);
+    display:flex;flex-direction:column;
+  }
+  /* ---------- Bandeau pub ---------- */
+  .banner{
+    position:relative;
+    background:var(--bleu);
+    color:var(--blanc);
+    padding:2.4cqh 3cqw 2.2cqh;
+    display:flex;flex-direction:column;gap:.4cqh;
+    border-bottom:.5cqh solid var(--rouge);
+  }
+  .eyebrow{
+    font-weight:800;letter-spacing:.28em;text-transform:uppercase;
+    font-size:1.5cqw;opacity:.9;
+  }
+  .eyebrow b{color:#ffd1d6}
+  h1{
+    font-family:"Anton",sans-serif;font-weight:400;
+    margin:0;line-height:.92;
+    font-size:6.6cqw;letter-spacing:.005em;
+    text-wrap:balance;
+  }
+  h1 .rouge{color:#ff5a63}
+  .subhead{
+    font-size:1.9cqw;font-weight:600;letter-spacing:.02em;opacity:.95;
+    margin-top:.5cqh;
+  }
+  /* Starburst NOUVEAU */
+  .burst{
+    position:absolute;top:50%;right:3cqw;transform:translateY(-50%) rotate(-12deg);
+    width:15cqw;height:15cqw;display:grid;place-items:center;text-align:center;
+    color:var(--blanc);
+    background:
+      conic-gradient(from 0deg, var(--rouge) 0 10deg, #b7000c 10deg 20deg);
+    -webkit-mask:radial-gradient(circle, #000 62%, transparent 63%),
+      conic-gradient(from -9deg, #000 0 18deg, transparent 18deg 36deg);
+    mask:radial-gradient(circle, #000 62%, transparent 63%),
+      conic-gradient(from -9deg, #000 0 18deg, transparent 18deg 36deg);
+    -webkit-mask-composite:source-over;mask-composite:add;
+    border-radius:50%;
+    filter:drop-shadow(0 .8cqh 1.2cqh rgba(0,0,0,.4));
+  }
+  .burst span{font-family:"Anton",sans-serif;font-size:2.9cqw;line-height:.85;transform:rotate(0)}
+  .burst small{display:block;font-family:"Libre Franklin";font-weight:800;font-size:1.15cqw;letter-spacing:.08em;margin-top:.4cqh}
+
+  /* ---------- Zone avant / après ---------- */
+  .compare{flex:1;display:flex;min-height:0}
+  .panel{flex:1;min-width:0;padding:2.2cqh 2.4cqw;display:flex;flex-direction:column;gap:1.4cqh;position:relative}
+  .panel.avant{background:linear-gradient(160deg,#dfdcd3,#c9c6bd)}
+  .panel.apres{background:linear-gradient(160deg,#ffffff,#eef1fb)}
+  .divider{width:.9cqw;background:linear-gradient(var(--bleu) 0 33%, #fff 33% 66%, var(--rouge) 66% 100%)}
+  .plabel{
+    display:flex;align-items:baseline;gap:1cqw;
+    font-family:"Anton",sans-serif;font-size:3.5cqw;line-height:1;letter-spacing:.02em;
+  }
+  .avant .plabel{color:#6f6a5e}
+  .apres .plabel{color:var(--bleu)}
+  .plabel small{font-family:"Libre Franklin";font-weight:800;font-size:1.3cqw;letter-spacing:.14em;text-transform:uppercase}
+  .apres .plabel .spark{color:var(--rouge)}
+
+  /* Feuille de compte-rendu */
+  .sheet{
+    flex:1;border-radius:.5cqw;padding:1.8cqh 1.8cqw;overflow:hidden;
+    display:flex;flex-direction:column;gap:1.1cqh;
+  }
+  .avant .sheet{
+    background:var(--papier-avant);color:#57534a;
+    font-family:"IBM Plex Mono",monospace;font-size:1.5cqw;line-height:1.5;
+    transform:rotate(-1.4deg);
+    box-shadow:0 1.2cqh 2.4cqh rgba(60,55,40,.28);
+    filter:saturate(.6);
+  }
+  .apres .sheet{
+    background:var(--blanc);color:var(--ink);
+    font-family:"Libre Franklin",sans-serif;font-size:1.55cqw;line-height:1.5;
+    transform:rotate(1deg);
+    box-shadow:0 1.4cqh 3cqh rgba(0,0,90,.20);
+    border-top:.6cqh solid var(--bleu);
+  }
+  .sheet .doc-h{
+    font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+    font-size:1.35cqw;padding-bottom:.8cqh;margin-bottom:.3cqh;
+    border-bottom:.15cqh solid currentColor;opacity:.85;
+  }
+  .apres .sheet .doc-h{color:var(--bleu);opacity:1;border-color:#c9cff0}
+  .doc-h .org{display:block;font-weight:600;text-transform:none;letter-spacing:0;font-size:1.05cqw;opacity:.7;margin-top:.3cqh}
+  .sheet ul{margin:0;padding-left:1.4cqw;display:flex;flex-direction:column;gap:.9cqh}
+  .sheet li{text-wrap:pretty}
+  .apres .sec{font-weight:800;color:var(--bleu);font-size:1.25cqw;text-transform:uppercase;letter-spacing:.05em;margin-top:.3cqh}
+  .who{color:var(--rouge);font-weight:600}
+
+  /* Sigles : charabia taché vs corrigé surligné */
+  .bad{
+    color:#6b5a38;font-weight:600;white-space:nowrap;position:relative;
+    text-decoration:wavy underline var(--tache);text-underline-offset:.25em;
+    text-decoration-thickness:.12em;
+  }
+  .good{
+    background:linear-gradient(transparent 55%, #b9d0ff 55%);
+    color:var(--bleu);font-weight:800;padding:0 .15em;border-radius:.1em;white-space:nowrap;
+  }
+
+  /* ---------- Bandeau produit ---------- */
+  .footer{
+    background:var(--blanc);
+    border-top:.4cqh solid var(--bleu);
+    padding:1.5cqh 3cqw;
+    display:flex;align-items:center;justify-content:space-between;gap:2cqw;
+  }
+  .lockup{display:flex;flex-direction:column;gap:.2cqh;min-width:0}
+  .brand{font-family:"Anton",sans-serif;font-size:3.2cqw;line-height:.9;color:var(--bleu)}
+  .brand em{font-style:normal;color:var(--rouge)}
+  .slogan{font-size:1.55cqw;font-weight:600;font-style:italic;color:#3a3a5c}
+  .pills{display:flex;gap:.9cqw;flex-wrap:wrap;justify-content:flex-end}
+  .pill{
+    font-weight:800;font-size:1.15cqw;letter-spacing:.02em;
+    padding:.7cqh 1.1cqw;border-radius:10cqw;white-space:nowrap;
+    background:#eef1fb;color:var(--bleu);border:.12cqh solid #c9cff0;
+  }
+  .pill.r{background:#ffeced;color:var(--rouge);border-color:#ffc9cd}
+  .stars{color:var(--rouge);font-size:1.5cqw;letter-spacing:.1em}
+  .stars small{color:#6b6b80;font-weight:700;font-size:1cqw;letter-spacing:0;margin-left:.4cqw}
+
+  /* ---------- Repli téléphone ---------- */
+  @media (max-width:760px){
+    .board{width:100%;aspect-ratio:auto;container-type:normal}
+    .banner{padding:20px 18px}
+    .eyebrow{font-size:12px}h1{font-size:34px}.subhead{font-size:15px}
+    .burst{width:96px;height:96px;right:14px}.burst span{font-size:19px}.burst small{font-size:8px}
+    .compare{flex-direction:column}
+    .divider{width:auto;height:8px;background:linear-gradient(90deg,var(--bleu) 0 33%,#fff 33% 66%,var(--rouge) 66% 100%)}
+    .panel{padding:18px 16px;gap:12px}
+    .plabel{font-size:30px}.plabel small{font-size:11px}
+    .avant .sheet,.apres .sheet{font-size:13px;transform:none}
+    .sheet .doc-h{font-size:12px}.doc-h .org{font-size:11px}
+    .apres .sec{font-size:12px}
+    .footer{flex-direction:column;align-items:flex-start;gap:10px;padding:16px 18px}
+    .brand{font-size:30px}.slogan{font-size:14px}.pill{font-size:11px;padding:6px 10px}
+    .pills{justify-content:flex-start}.stars{font-size:15px}.stars small{font-size:10px}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .apres .sheet{animation:pop .6s ease-out both}
+    @keyframes pop{from{transform:rotate(1deg) scale(.985);opacity:.4}to{transform:rotate(1deg) scale(1);opacity:1}}
+  }
+</style>
+
+<div class="stage">
+  <div class="board" role="img" aria-label="Publicité parodique : un compte-rendu terne avec des acronymes mal transcrits (avant) devient un compte-rendu éclatant avec les acronymes corrigés (après), grâce à Summary v2.">
+
+    <header class="banner">
+      <div class="eyebrow">Nouveau · <b>La Suite numérique</b> · souverain, sur Albert</div>
+      <h1>Ravive vos comptes-rendus<br><span class="rouge">anti-charabia, anti-grisaille</span></h1>
+      <div class="subhead">La génération de CR qui lave les sigles plus blancs que blanc.</div>
+      <div class="burst" aria-hidden="true"><div><span>−100%</span><small>DE CHARABIA</small></div></div>
+    </header>
+
+    <section class="compare">
+      <div class="panel avant">
+        <div class="plabel">Avant <small>sans Summary v2</small></div>
+        <div class="sheet">
+          <div class="doc-h">Compte-rendu — réunion</div>
+          <ul>
+            <li>« <b>SPEAKER_00</b> : ouverture du comité… »</li>
+            <li>Analyse d'impact (<span class="bad">AIPEDE</span>) à valider par la <span class="bad">Quenil</span>.</li>
+            <li>Homologation par l'<span class="bad">ANSI</span> — test d'intrusion en attente.</li>
+            <li>Socle d'authentification livré par la <span class="bad">Dix Nomme</span>.</li>
+            <li>Ouverture au public : décision… <span class="bad">non attribuée</span>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="panel apres">
+        <div class="plabel">Après <small>avec Summary v2</small> <span class="spark">✦</span></div>
+        <div class="sheet">
+          <div class="doc-h">Compte-rendu — COPIL <span class="org">Secrétariat général d'un ministère · format gouvernance</span></div>
+          <ul>
+            <li class="sec">Décisions &amp; validations</li>
+            <li>Analyse d'impact (<span class="good">AIPD</span>) à transmettre à la <span class="good">CNIL</span>.</li>
+            <li>Homologation <span class="good">ANSSI</span> conditionnée au test d'intrusion.</li>
+            <li>Socle d'authentification livré par la <span class="good">DINUM</span>.</li>
+            <li class="sec">Prochaines étapes</li>
+            <li><span class="who">Thomas Nguyen</span> · test d'intrusion — <span class="who">Claire Mercier</span> · note AIPD.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="lockup">
+        <div class="brand">Summary <em>v2</em></div>
+        <div class="slogan">pour des résumés plus éclatants.</div>
+      </div>
+      <div class="pills">
+        <span class="pill">✓ Locuteurs identifiés</span>
+        <span class="pill r">✓ Sigles rétablis</span>
+        <span class="pill">✓ Format adapté à la réunion</span>
+        <div class="stars">★★★★★ <small>testé sur Albert</small></div>
+      </div>
+    </footer>
+
+  </div>
+</div>
