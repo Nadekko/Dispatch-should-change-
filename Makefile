@@ -44,7 +44,7 @@ data/media:
 
 bootstrap: ## clone repos if needed, build images, migrate DBs, start the stack
 bootstrap: \
-	clone \
+# 	clone
 	data/media \
 	build \
 	pull \
@@ -63,9 +63,9 @@ bootstrap: \
 .PHONY: bootstrap
 
 clone: ## clone Docs, Meet and Dictaphone if they are missing
-	@test -d docs/.git || git clone --depth 1 https://github.com/suitenumerique/docs.git
-	@test -d meet/.git || git clone --depth 1 https://github.com/suitenumerique/meet.git
-	@test -d dictaphone/.git || git clone --depth 1 https://github.com/suitenumerique/dictaphone.git
+#	@test -d docs/.git || git clone --depth 1 https://github.com/suitenumerique/docs.git
+#	@test -d meet/.git || git clone --depth 1 https://github.com/suitenumerique/meet.git
+#	@test -d dictaphone/.git || git clone --depth 1 https://github.com/suitenumerique/dictaphone.git
 	@$(MAKE) patch-upstreams
 	@$(MAKE) prepare-realms
 	@$(MAKE) docs-mails

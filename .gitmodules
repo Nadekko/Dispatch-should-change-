@@ -1,0 +1,12 @@
+[submodule "dictaphone"]
+	path = dictaphone
+	url = git@github.com:Nadekko/Dispatch-should-change-.git
+	branch = summary_under_docs
+[submodule "meet"]
+	path = meet
+	url = git@github.com:Nadekko/Dispatch-should-change-.git
+	branch = summary_under_docs
+[submodule "docs"]
+	path = docs
+	url = git@github.com:Nadekko/Dispatch-should-change-.git
+	branch = summary_under_docs
