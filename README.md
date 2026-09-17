@@ -23,7 +23,7 @@ Interop wiring:
 
 - **Meet → Docs**: after a recording is transcribed, the summary service calls Docs `POST /api/v1.0/documents/create-for-owner/` with `DJANGO_SERVER_TO_SERVER_API_TOKENS`.
 - **Dictaphone → summary**: Dictaphone sends transcribe/summarize jobs to the same Meet summary API (`AI_SERVICE_URL`).
-- **Dictaphone → Docs**: completed transcripts can be opened/created in Docs with the same server-to-server token.
+- **Dictaphone → Docs**: completed transcripts can be opened/created in Docs with the same server-to-server token, and the generated summary is created as a child document of the transcript document.
 
 ```
 Dictaphone ──┐

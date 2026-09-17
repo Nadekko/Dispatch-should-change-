@@ -1,4 +1,0 @@
-# Copy to env/summary.local (gitignored) and fill in your Albert token.
-# The same bearer token is used for STT and chat.
-WHISPERX_API_KEY=PUT_YOUR_ALBERT_API_KEY_HERE
-LLM_API_KEY=PUT_YOUR_ALBERT_API_KEY_HERE
