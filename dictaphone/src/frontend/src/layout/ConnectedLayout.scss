@@ -1,0 +1,57 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'md');
+
+.dictaphone__connected_layout_container {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 2rem;
+
+  transition: background-color 0.2s ease;
+  &.fancy-background {
+    background-image:
+      linear-gradient(
+        212.98deg,
+        rgba(246, 248, 249, 0) 64.6%,
+        rgba(255, 237, 235, 0.6) 113.3%
+      ),
+      linear-gradient(
+        166.15deg,
+        rgba(246, 248, 249, 0) 46.92%,
+        rgba(200, 211, 255, 0.6) 126.35%
+      );
+  }
+
+  .dictaphone__connected_layout_content {
+    width: 100%;
+    max-width: 800px;
+    padding-top: 1rem;
+  }
+}
+
+.c__main-layout {
+  .c__header {
+    border-bottom: none;
+    // Forced display none on mobile
+    .c__header__toggle-menu {
+      display: none;
+    }
+  }
+}
+
+.dictaphone__connected_layout_help_menu {
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  z-index: 9999999999;
+
+  aside {
+    display: flex;
+    align-items: start;
+    flex-direction: column;
+    gap: var(--c--globals--spacings--2xs);
+  }
+}

@@ -1,0 +1,154 @@
+/* based on https://github.com/livekit/components-js/blob/main/packages/styles/scss/themes/default.scss
+*/
+[data-lk-theme='visio-light'] {
+  color-scheme: light;
+  --lk-bg: var(--colors-white);
+  --lk-room-bg: var(--colors-default-bg);
+  --lk-bg2: var(--colors-gray-100);
+  --lk-bg3: var(--colors-gray-200);
+  --lk-bg4: var(--colors-gray-300);
+  --lk-bg5: var(--colors-gray-400);
+  --lk-fg: var(--colors-text);
+  --lk-fg5: #52525b;
+  --lk-border-color: var(--colors-gray-400);
+  --lk-accent-fg: var(--colors-primary-text);
+  --lk-accent-bg: var(--colors-primary);
+  --lk-accent2: var(--colors-primary-hover);
+  --lk-accent3: var(--colors-primary-active);
+  --lk-accent4: var(--colors-primary-active);
+  --lk-danger-fg: var(--colors-danger-text);
+  --lk-danger: var(--colors-danger);
+  --lk-danger-hover-bg: var(--colors-danger-hover);
+  --lk-danger-active-bg: var(--colors-danger-active);
+  --lk-success-fg: var(--colors-success-text);
+  --lk-success: var(--colors-success);
+  --lk-control-fg: var(--colors-control-text);
+  --lk-control-bg: var(--colors-control);
+  --lk-control-hover-bg: var(--colors-control-hover);
+  --lk-control-toggled-on-bg: var(--colors-control-hover);
+  --lk-control-active-bg: var(--colors-control-active);
+  --lk-control-active-hover-bg: var(--colors-control-active);
+  --lk-connection-excellent: var(--colors-success);
+  --lk-connection-good: var(--colors-warning);
+  --lk-connection-poor: var(--colors-danger);
+  --lk-line-height: var(--line-heights-1\.5);
+  --lk-border-radius: var(--radii-8);
+  --lk-box-shadow: var(--shadows-sm);
+  --lk-grid-gap: 1.5rem;
+  --lk-control-bar-height: 69px;
+  --lk-chat-header-height: 69px;
+
+  --lk-font-family: var(--fonts-sans);
+  --lk-font-size: 1rem;
+  --lk-bg6: #6b7280;
+  --lk-control-border-width: 1px;
+  --lk-control-border-color: var(--lk-bg5);
+  --lk-control-border: var(--lk-control-border-color);
+  --lk-control-hover-border: var(--lk-bg6);
+
+  --lk-controlbar-bg: var(--colors-gray-300);
+  --lk-participant-border: var(--colors-gray-400);
+}
+
+[data-lk-theme] .lk-room-container {
+  background-color: var(--lk-room-bg);
+}
+
+.lk-button,
+.lk-start-audio-button,
+.lk-chat-toggle,
+.lk-disconnect-button {
+  border-color: var(--lk-control-border);
+  border-width: var(--lk-control-border-width);
+  border-style: solid;
+}
+
+.lk-button-group > .lk-button {
+  border-right-color: transparent;
+}
+
+.lk-button-group > .lk-button-group-menu > .lk-button {
+  border-left-color: transparent;
+}
+.lk-button:not(:disabled):hover,
+.lk-start-audio-button:not(:disabled):hover,
+.lk-chat-toggle:not(:disabled):hover {
+  border-color: var(--lk-control-hover-border);
+}
+
+.lk-button:not(:disabled):active,
+.lk-start-audio-button:not(:disabled):active,
+.lk-close-button:not(:disabled):active,
+.lk-chat-toggle:not(:disabled):active,
+.lk-button:not(:disabled):is([data-pressed]) {
+  background-color: var(--lk-control-active-bg);
+}
+
+.lk-button[aria-pressed='true'],
+[aria-pressed='true'].lk-start-audio-button,
+[aria-pressed='true'].lk-chat-toggle,
+[aria-pressed='true'].lk-disconnect-button {
+  background-color: var(--lk-control-toggled-on-bg);
+}
+
+[data-lk-theme] .lk-disconnect-button {
+  --lk-control-border: var(--colors-danger-hover);
+}
+
+[data-lk-theme] .lk-disconnect-button:not(:disabled):hover {
+  --lk-control-hover-bg: var(--lk-danger-hover-bg);
+}
+
+[data-lk-theme] .lk-disconnect-button:not(:disabled):active {
+  background-color: var(--lk-danger-active-bg);
+}
+
+[data-lk-theme='visio-light'] .lk-close-button path {
+  fill: var(--lk-fg);
+}
+
+[data-lk-theme='visio-light'] .lk-participant-metadata-item,
+[data-lk-theme='visio-light']
+  .lk-participant-tile
+  .lk-focus-toggle-button:not(:hover) {
+  color: white;
+}
+
+.lk-chat-entry .lk-meta-data {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+[data-lk-theme] .lk-control-bar {
+  background-color: var(--lk-controlbar-bg);
+}
+
+[data-lk-theme] .lk-prejoin {
+  padding-top: 0;
+  width: 100%;
+}
+
+[data-lk-theme] .lk-participant-tile {
+  box-shadow: var(--lk-box-shadow);
+}
+
+/* Participant name ellipsis: truncate when overflowing */
+.lk-participant-metadata {
+  gap: 1rem;
+}
+.lk-participant-metadata > *:first-child {
+  min-width: 0;
+}
+.lk-participant-metadata > *:first-child {
+  flex: 1;
+}
+.lk-participant-metadata > *:first-child .lk-participant-metadata-item,
+.lk-participant-metadata
+  .lk-participant-metadata-item
+  .lk-participant-name-wrapper {
+  min-width: 0;
+}
+.lk-participant-metadata > *:first-child .lk-participant-metadata-item {
+  display: flex;
+  align-items: center;
+}

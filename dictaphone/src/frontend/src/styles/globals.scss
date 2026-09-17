@@ -1,0 +1,121 @@
+@use '@gouvfr-lasuite/ui-kit/sass/fonts';
+@use '@gouvfr-lasuite/ui-kit/style';
+@use './cunningham-tokens.css';
+
+@use './../layout/LogoApp';
+@use './../layout/ConnectedLayout';
+@use './../layout/BaseLayout';
+@use './../layout/DownloadMobileAppPopUp';
+@use './../layout/HeaderRight';
+@use './../components/Card';
+@use './../components/Pagination';
+@use './../components/DownloadAppsButtons';
+@use './../features/ui/preview/preview';
+@use './../features/recordings/components/RecordComponent';
+@use './../features/recordings/components/SignalLevelMeter';
+@use './../features/recordings/components/RecoverList';
+@use './../components/ProgressBar';
+@use './../components/Skeleton';
+@use './../features/recordings/components/ListRecordings';
+@use './../features/recordings/components/Transcript';
+@use './../features/files/components/FileUploadToast';
+@use './../features/ui/components/toaster';
+@use './../pages/DownloadMobileAppPage';
+@use './../pages/RecordingPage';
+@use './../pages/RecordingsPage';
+@use './../pages/HomePage';
+@use './../pages/legal/LegalPage';
+
+// Buggy otherwise for some reason
+.c__avatar__initials {
+  width: 24px;
+}
+
+.c__dropdown-menu {
+  border-radius: 8px;
+}
+
+.c__dropdown-menu-item {
+  gap: var(--c--globals--spacings--xxs);
+  padding-left: var(--c--globals--spacings--xs);
+  padding-right: var(--c--globals--spacings--xs);
+}
+
+// Select component is broken in ui kit
+.c__select__menu__item--disabled {
+  color: var(--c--globals--colors--gray-600);
+}
+
+.c__header {
+  background: transparent;
+}
+
+body {
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.p-2xs {
+  padding: var(--c--globals--spacings--2xs);
+}
+
+.p-xs {
+  padding: var(--c--globals--spacings--xs);
+}
+
+.p-sm {
+  padding: var(--c--globals--spacings--sm);
+}
+
+.p-md {
+  padding: var(--c--globals--spacings--md);
+}
+
+.p-base {
+  padding: var(--c--globals--spacings--base);
+}
+
+.hoverGroup .hoverGroupChild {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hoverGroup:hover .hoverGroupChild,
+.hoverGroup:focus-within .hoverGroupChild {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hidden {
+  display: none;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.btn-centered {
+  justify-content: center;
+}

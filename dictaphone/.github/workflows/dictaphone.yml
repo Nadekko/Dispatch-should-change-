@@ -1,0 +1,290 @@
+name: dictaphone Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+permissions:
+  contents: read
+
+jobs:
+  # lint-git:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request' # Makes sense only for pull requests
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v6
+  #       with:
+  #         fetch-depth: 0
+  #     - name: show
+  #       run: git log
+  #     - name: Enforce absence of print statements in code
+  #       if: always()
+  #       run: |
+  #         ! git diff origin/${{ github.event.pull_request.base.ref }}..HEAD -- . ':(exclude)**/dictaphone.yml' | grep "print("
+  #     - name: Check absence of fixup commits
+  #       if: always()
+  #       run: |
+  #         ! git log | grep 'fixup!'
+  #     - name: Install gitlint
+  #       if: always()
+  #       run: pip install --user requests gitlint
+  #     - name: Lint commit messages added to main
+  #       if: always()
+  #       run: ~/.local/bin/gitlint --commits origin/${{ github.event.pull_request.base.ref }}..HEAD
+
+  # check-changelog:
+  #   runs-on: ubuntu-latest
+  #   if: |
+  #     contains(github.event.pull_request.labels.*.name, 'noChangeLog') == false &&
+  #     github.event_name == 'pull_request'
+  #   permissions:
+  #       contents: read
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v6
+  #       with:
+  #         fetch-depth: 50
+  #     - name: Check that the CHANGELOG has been modified in the current branch
+  #       run: git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.after }} | grep 'CHANGELOG.md'
+
+  # lint-changelog:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v6
+  #     - name: Check CHANGELOG max line length
+  #       run: |
+  #         max_line_length=$(cat CHANGELOG.md | grep -Ev "^\[.*\]: https://github.com" | wc -L)
+  #         if [ $max_line_length -ge 80 ]; then
+  #           echo "ERROR: CHANGELOG has lines longer than 80 characters."
+  #           exit 1
+  #         fi
+
+  lint-back:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Install the project
+        run: uv sync --locked --all-extras
+
+      - name: Check code formatting with ruff
+        run: uv run ruff format . --diff
+      - name: Lint code with ruff
+        run: uv run ruff check .
+      - name: Lint code with pylint
+        run: uv run pylint dictaphone demo core
+
+  test-back:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: src/backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dictaphone
+          POSTGRES_USER: dinum
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:5
+        ports:
+          - 6379:6379
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_CONFIGURATION: Test
+      DJANGO_SETTINGS_MODULE: dictaphone.settings
+      DJANGO_SECRET_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      SIMPLE_JWT_SIGNING_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      OIDC_OP_JWKS_ENDPOINT: /endpoint-for-test-purpose-only
+      DB_HOST: localhost
+      DB_NAME: dictaphone
+      DB_USER: dinum
+      DB_PASSWORD: pass
+      DB_PORT: 5432
+      REDIS_URL: redis://localhost:6379/1
+      STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
+      S3_DEFAULT_ACCESS_KEY_ID: dictaphone-default
+      S3_DEFAULT_SECRET_ACCESS_KEY: password-default
+      S3_DEFAULT_BUCKET_NAME: dictaphone-media-storage
+      S3_ALPHA_ACCESS_KEY_ID: dictaphone-alpha
+      S3_ALPHA_SECRET_ACCESS_KEY: password-alpha
+      S3_ALPHA_BUCKET_NAME: dictaphone-media-alpha
+      S3_BETA_ACCESS_KEY_ID: dictaphone-beta
+      S3_BETA_SECRET_ACCESS_KEY: password-beta
+      S3_BETA_BUCKET_NAME: dictaphone-media-beta
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_BUCKET_CONFIGURATIONS: '{"default":{"bucket_name_env":"S3_DEFAULT_BUCKET_NAME","access_key_id_env":"S3_DEFAULT_ACCESS_KEY_ID","secret_access_key_env":"S3_DEFAULT_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"alpha":{"bucket_name_env":"S3_ALPHA_BUCKET_NAME","access_key_id_env":"S3_ALPHA_ACCESS_KEY_ID","secret_access_key_env":"S3_ALPHA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"},"beta":{"bucket_name_env":"S3_BETA_BUCKET_NAME","access_key_id_env":"S3_BETA_ACCESS_KEY_ID","secret_access_key_env":"S3_BETA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4"}}'
+      DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.example"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.example"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
+      OIDC_RS_CLIENT_ID: dictaphone
+      OIDC_RS_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly
+      OIDC_OP_INTROSPECTION_ENDPOINT: https://oidc.example.com/introspect
+      OIDC_OP_URL: https://oidc.example.com
+      MEDIA_BASE_URL: http://localhost:8083
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Create writable /data
+        run: |
+          sudo mkdir -p /data/media && \
+          sudo mkdir -p /data/static
+
+      - name: Restore the mail templates
+        uses: actions/cache@v5
+        id: mail-templates
+        with:
+          path: "src/backend/core/templates/mail"
+          key: mail-templates-${{ hashFiles('src/mail/mjml') }}
+
+      - name: Start MinIO
+        run: |
+          docker pull minio/minio
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e "MINIO_ROOT_USER=dictaphone" \
+            -e "MINIO_ROOT_PASSWORD=password" \
+            -v /data/media:/data \
+            minio/minio server --console-address :9001 /data
+
+      # Tool to wait for a service to be ready
+      - name: Install Dockerize
+        run: |
+          curl -sSL https://github.com/jwilder/dockerize/releases/download/v0.8.0/dockerize-linux-amd64-v0.8.0.tar.gz | sudo tar -C /usr/local/bin -xzv
+
+      - name: Wait for MinIO to be ready
+        run: |
+          dockerize -wait tcp://localhost:9000 -timeout 10s
+
+      - name: Configure MinIO
+        run: |
+          docker pull minio/mc
+          docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+            "until mc alias set dictaphone http://localhost:9000 dictaphone password; do sleep 1; done && \
+            until mc ready dictaphone; do sleep 1; done && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-storage && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-alpha && \
+            mc mb --ignore-existing dictaphone/dictaphone-media-beta && \
+            mc admin user add dictaphone dictaphone-default password-default && \
+            mc admin user add dictaphone dictaphone-alpha password-alpha && \
+            mc admin user add dictaphone dictaphone-beta password-beta && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-storage\",\"arn:aws:s3:::dictaphone-media-storage/*\"]}]}' >/tmp/default-policy.json && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-alpha\",\"arn:aws:s3:::dictaphone-media-alpha/*\"]}]}' >/tmp/alpha-policy.json && \
+            printf '%s' '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::dictaphone-media-beta\",\"arn:aws:s3:::dictaphone-media-beta/*\"]}]}' >/tmp/beta-policy.json && \
+            mc admin policy create dictaphone default-bucket-policy /tmp/default-policy.json && \
+            mc admin policy create dictaphone alpha-bucket-policy /tmp/alpha-policy.json && \
+            mc admin policy create dictaphone beta-bucket-policy /tmp/beta-policy.json && \
+            mc admin policy attach dictaphone default-bucket-policy --user dictaphone-default && \
+            mc admin policy attach dictaphone alpha-bucket-policy --user dictaphone-alpha && \
+            mc admin policy attach dictaphone beta-bucket-policy --user dictaphone-beta"
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Install the dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Install gettext (required to compile messages)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+
+      - name: Generate a MO file from strings extracted from the project
+        run: uv run python manage.py compilemessages
+
+      - name: Run tests
+        run: uv run pytest -n 2
+
+  lint-front:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd src/frontend/ && npm ci
+
+      - name: Check linting
+        run: cd src/frontend/ && npm run lint
+
+      - name: Check format
+        run: cd src/frontend/ && npm run check
+
+  lint-mobile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: src/mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: yarn
+          cache-dependency-path: src/mobile/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check linting
+        run: yarn run lint
+
+      - name: Check format
+        run: yarn run check
+
+      - name: Check types
+        run: yarn run tsc

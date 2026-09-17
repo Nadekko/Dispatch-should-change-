@@ -1,0 +1,62 @@
+{
+  "backToHome": "Back to homescreen",
+  "cancel": "Cancel",
+  "closeDialog": "Close dialog",
+  "error": {
+    "heading": "An error occurred while loading the page"
+  },
+  "feedback": {
+    "context": "Your feedback shapes the product!",
+    "cta": "Share your feedback - new tab"
+  },
+  "forbidden": {
+    "heading": "You don't have the permission to view this page"
+  },
+  "loading": "Loading…",
+  "loggedInUserTooltip": "Logged in as ",
+  "login": {
+    "buttonLabel": "Login",
+    "proconnectButtonLabel": "Login with ProConnect",
+    "proconnectLinkLabel": "What is ProConnect? - new tab",
+    "proconnectLink": "What is ProConnect?"
+  },
+  "logout": "Logout",
+  "notFound": {
+    "heading": "Verify your meeting code",
+    "body": "Check that you have entered the correct meeting code in the URL. Example:"
+  },
+  "selected": "selected",
+  "submit": "OK",
+  "footer": {
+    "links": {
+      "legifrance": "legifrance.gouv.fr",
+      "infogouv": "info.gouv.fr",
+      "servicepublic": "service-public.fr",
+      "datagouv": "data.gouv.fr",
+      "legalsTerms": "Legal Notice",
+      "data": "Personal Data and Cookies",
+      "accessibility": "Accessibility: non-compliant",
+      "connectionTest": "Test your configuration",
+      "ariaLabel": "new window",
+      "codeAnnotation": "Our code is open and available on this",
+      "code": "Open Source Code Repository",
+      "technicalDetails": "Technical Notice",
+      "termsOfService": "Terms of service"
+    },
+    "mentions": "Unless otherwise stated, the contents of this site are available under",
+    "license": "etalab 2.0 license"
+  },
+  "loginHint": {
+    "title": "Log in with your account",
+    "body": "Instead of waiting, log in with your account.",
+    "button": {
+      "ariaLabel": "Close the suggestion",
+      "label": "OK"
+    }
+  },
+  "skipLink": "Skip to main content",
+  "clipboardContent": {
+    "url": "To join the video conference, click on this link: {{roomUrl}}",
+    "numberAndPin": "To join by phone, dial {{phoneNumber}} and enter this code: {{pinCode}}"
+  }
+}

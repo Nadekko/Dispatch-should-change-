@@ -1,0 +1,191 @@
+image:
+  repository: localhost:5001/dictaphone-backend
+  pullPolicy: Always
+  tag: "latest"
+
+backend:
+  replicas: 1
+  envVars:
+    DJANGO_CSRF_TRUSTED_ORIGINS: https://dictaphone.127.0.0.1.nip.io,http://dictaphone.127.0.0.1.nip.io
+    DJANGO_CONFIGURATION: Production
+    DJANGO_ALLOWED_HOSTS: dictaphone.127.0.0.1.nip.io,dictaphone-backend.dictaphone.svc.cluster.local
+    DJANGO_SECRET_KEY: {{ .Values.djangoSecretKey }}
+    SIMPLE_JWT_SIGNING_KEY: {{ .Values.simpleJwtSigningKey }}
+    DJANGO_SETTINGS_MODULE: dictaphone.settings
+    DJANGO_SILENCED_SYSTEM_CHECKS: security.W004, security.W008
+    DJANGO_SUPERUSER_PASSWORD: admin
+    DJANGO_EMAIL_HOST: "mailcatcher"
+    DJANGO_EMAIL_PORT: 1025
+    DJANGO_EMAIL_USE_SSL: "False"
+    DJANGO_EMAIL_BRAND_NAME: "L'Assistant Transcripts"
+    DJANGO_EMAIL_SUPPORT_EMAIL: "test@yopmail.com"
+    DJANGO_EMAIL_LOGO_IMG: https://dictaphone.127.0.0.1.nip.io/assets/logo-suite-numerique.png
+    DJANGO_EMAIL_DOMAIN: dictaphone.127.0.0.1.nip.io
+    DJANGO_EMAIL_APP_BASE_URL: https://dictaphone.127.0.0.1.nip.io
+    OIDC_OP_JWKS_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/certs
+    OIDC_OP_AUTHORIZATION_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/auth
+    OIDC_OP_TOKEN_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/token
+    OIDC_OP_USER_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/userinfo
+    OIDC_OP_LOGOUT_ENDPOINT: https://keycloak.127.0.0.1.nip.io/realms/dictaphone/protocol/openid-connect/logout
+    OIDC_RP_CLIENT_ID: dictaphone
+    OIDC_RP_CLIENT_SECRET: ThisIsAnExampleKeyForDevPurposeOnly
+    OIDC_RP_SIGN_ALGO: RS256
+    OIDC_RP_SCOPES: "openid email"
+    OIDC_REDIRECT_ALLOWED_HOSTS: https://dictaphone.127.0.0.1.nip.io
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS: "{'acr_values': 'eidas1'}"
+    # valid value just for dev, we should not store this here but it's technically ok for now
+    OIDC_STORE_REFRESH_TOKEN_KEY: {{ .Values.oidcStoreRefreshTokenKey }}
+    LOGIN_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io
+    LOGIN_REDIRECT_URL_FAILURE: https://dictaphone.127.0.0.1.nip.io
+    LOGOUT_REDIRECT_URL: https://dictaphone.127.0.0.1.nip.io
+    DB_HOST: postgres
+    DB_NAME: dictaphone
+    DB_USER: dinum
+    DB_PASSWORD: pass
+    DB_PORT: 5432
+    REDIS_URL: redis://default:pass@redis-master:6379/1
+    STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
+    FRONTEND_SUPPORT: "{'id': '58ea6697-8eba-4492-bc59-ad6562585041', 'help_article_transcript': 'https://lasuite.crisp.help/fr/article/visio-transcript-1sjq43x', 'help_article_recording': 'https://lasuite.crisp.help/fr/article/visio-enregistrement-wgc8o0', 'help_article_more_tools': 'https://lasuite.crisp.help/fr/article/visio-tools-bvxj23'}"
+    FRONTEND_FEEDBACK: "{'url': 'https://grist.numerique.gouv.fr/o/docs/cbMv4G7pLY3Z/USER-RESEARCH-or-LA-SUITE/f/26'}"
+    S3_DEFAULT_ACCESS_KEY_ID: dictaphone-default
+    S3_DEFAULT_SECRET_ACCESS_KEY: password-default
+    S3_DEFAULT_BUCKET_NAME: dictaphone-media-storage
+    S3_ALPHA_ACCESS_KEY_ID: dictaphone-alpha
+    S3_ALPHA_SECRET_ACCESS_KEY: password-alpha
+    S3_ALPHA_BUCKET_NAME: dictaphone-media-alpha
+    S3_BETA_ACCESS_KEY_ID: dictaphone-beta
+    S3_BETA_SECRET_ACCESS_KEY: password-beta
+    S3_BETA_BUCKET_NAME: dictaphone-media-beta
+    S3_ENDPOINT_URL: http://minio.dictaphone.svc.cluster.local:9000
+    S3_BUCKET_CONFIGURATIONS: '{"default":{"bucket_name_env":"S3_DEFAULT_BUCKET_NAME","access_key_id_env":"S3_DEFAULT_ACCESS_KEY_ID","secret_access_key_env":"S3_DEFAULT_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4","domain_replace":"https://minio-dictaphone.127.0.0.1.nip.io"},"alpha":{"bucket_name_env":"S3_ALPHA_BUCKET_NAME","access_key_id_env":"S3_ALPHA_ACCESS_KEY_ID","secret_access_key_env":"S3_ALPHA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4","domain_replace":"https://minio-dictaphone.127.0.0.1.nip.io"},"beta":{"bucket_name_env":"S3_BETA_BUCKET_NAME","access_key_id_env":"S3_BETA_ACCESS_KEY_ID","secret_access_key_env":"S3_BETA_SECRET_ACCESS_KEY","endpoint_url_env":"S3_ENDPOINT_URL","region_name":"local","signature_version":"s3v4","domain_replace":"https://minio-dictaphone.127.0.0.1.nip.io"}}'
+    DATA_POLICY_CONFIGURATIONS: '{"default":{"default":True,"bucket":"default"},"alpha":{"domains":["alpha.example"],"bucket":"alpha","file_auto_hard_delete_after_days":14,"original_file_data_delete_after_days":7},"beta":{"domains":["beta.example"],"bucket":"beta","file_auto_hard_delete_after_days":30,"original_file_data_delete_after_days":14}}'
+    MEDIA_BASE_URL: https://dictaphone.127.0.0.1.nip.io
+    SSL_CERT_FILE: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
+    CELERY_ENABLED: "True"
+    CELERY_BROKER_URL: redis://default:pass@redis-master:6379/1
+    CELERY_RESULT_BACKEND: redis://default:pass@redis-master:6379/1
+    # For meet communication this is needed in dev
+    SECURE_SSL_REDIRECT: "False"
+    DOCS_INTEGRATION_ENABLED: "True"
+    DOCS_BASE_URL: "True"
+    DOCS_BASE_URL: https://impress-staging.beta.numerique.gouv.fr/
+
+  migrate:
+    command:
+      - "/bin/sh"
+      - "-c"
+      - |
+        python manage.py migrate --no-input
+    restartPolicy: Never
+
+  command:
+    - "gunicorn"
+    - "-c"
+    - "/usr/local/etc/gunicorn/dictaphone.py"
+    - "dictaphone.wsgi:application"
+    - "--reload"
+
+  createsuperuser:
+    command:
+      - "/bin/sh"
+      - "-c"
+      - |
+        python manage.py createsuperuser --email admin@example.com --password admin
+    restartPolicy: Never
+
+  # Extra volume mounts to manage our local custom CA and avoid to set ssl_verify: false
+  extraVolumeMounts:
+    - name: certs
+      mountPath: /app/.venv/lib/python3.14/site-packages/certifi/cacert.pem
+      subPath: cacert.pem
+
+  # Extra volumes to manage our local custom CA and avoid to set ssl_verify: false
+  extraVolumes:
+    - name: certs
+      configMap:
+        name: certifi
+        items:
+        - key: cacert.pem
+          path: cacert.pem
+
+celeryBackend:
+  replicas: 1
+  command:
+    - "celery"
+    - "-A"
+    - "dictaphone.celery_app"
+    - "worker"
+    - "--loglevel=info"
+    - "--concurrency=1"
+    - "-Q"
+    - "dictaphone-backend"
+
+celeryAudioExtractor:
+  replicas: 1
+  command:
+    - "celery"
+    - "-A"
+    - "dictaphone.celery_app"
+    - "worker"
+    - "--loglevel=info"
+    - "--concurrency=1"
+    - "-Q"
+    - "dictaphone-audio"
+
+frontend:
+  envVars:
+    VITE_APP_TITLE: "Assistant Transcripts"
+    VITE_PORT: 8080
+    VITE_HOST: 0.0.0.0
+    VITE_API_BASE_URL: https://dictaphone.127.0.0.1.nip.io/
+
+  replicas: 1
+
+  image:
+    repository: localhost:5001/dictaphone-frontend-generic
+    pullPolicy: Always
+    tag: "latest"
+
+ingress:
+  enabled: true
+  host: dictaphone.127.0.0.1.nip.io
+
+ingressAdmin:
+  enabled: true
+  host: dictaphone.127.0.0.1.nip.io
+
+posthog:
+  ingress:
+    enabled: false
+  
+  ingressAssets:
+    enabled: false
+
+ingressMediaFiles:
+  - name: default
+    serviceName: default
+    enabled: true
+    className: null
+    host: dictaphone.127.0.0.1.nip.io
+    path: /media/(.*)
+    hosts: []
+    tls:
+      secretName: null
+      enabled: true
+      additional: []
+
+    annotations:
+      nginx.ingress.kubernetes.io/use-regex: "true"
+      nginx.ingress.kubernetes.io/auth-url: https://dictaphone.127.0.0.1.nip.io/api/v1.0/files/media-auth/
+      nginx.ingress.kubernetes.io/auth-response-headers: "Authorization, X-Amz-Date, X-Amz-Content-SHA256"
+      nginx.ingress.kubernetes.io/upstream-vhost: minio.dictaphone.svc.cluster.local:9000
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        add_header Content-Security-Policy "default-src 'none'" always;
+        add_header Content-Disposition "attachment";
+
+serviceMediaFiles:
+  - name: default
+    host: minio.dictaphone.svc.cluster.local
+    port: 9000
+    annotations: {}

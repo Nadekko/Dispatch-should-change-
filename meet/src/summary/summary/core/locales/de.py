@@ -1,0 +1,34 @@
+"""German locale strings."""
+
+from summary.core.locales.strings import LocaleStrings
+
+STRINGS = LocaleStrings(
+    empty_transcription="""
+**In Ihrer Transkription wurde kein Audioinhalt erkannt.**
+
+*Wenn Sie glauben, dass es sich um einen Fehler handelt, zögern Sie nicht,
+unseren technischen Support zu kontaktieren: visio@numerique.gouv.fr*
+
+.
+
+.
+
+.
+
+Einige Punkte, die wir Ihnen empfehlen zu überprüfen:
+- War ein Mikrofon aktiviert?
+- Waren Sie nah genug am Mikrofon?
+- Ist das Mikrofon von guter Qualität?
+- Dauert die Aufnahme länger als 30 Sekunden?
+
+""",
+    download_header_template=(
+        "\n*[Laden Sie hier Ihre Aufnahme herunter (externer Link)]({download_link})*\n"
+    ),
+    form_footer_template=(
+        "\n\n*[Teilen Sie uns mit, wie Ihnen diese Transkription gefallen hat "
+        "(externer Link)]({form_link})*\n"
+    ),
+    hallucination_replacement_text="[Text konnte nicht transkribiert werden]",
+    summary_title_template="Zusammenfassung von {title}",
+)

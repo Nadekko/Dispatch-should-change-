@@ -1,0 +1,802 @@
+{
+  "feedback": {
+    "heading": {
+      "normal": "Je hebt de vergadering verlaten",
+      "duplicateIdentity": "U heeft de vergadering via een ander apparaat geopend",
+      "participantRemoved": "U bent door een beheerder uit het gesprek verwijderd"
+    },
+    "home": "Keer terug naar het hoofdscherm",
+    "back": "Sluit weer bij de vergadering aan"
+  },
+  "selectDevice": {
+    "loading": "Bezig met laden…",
+    "select": "Selecteer een waarde",
+    "permissionsNeeded": "Toestemming vereist",
+    "deviceNotFound": {
+      "videoinput": "Geen camera gedetecteerd. Controleer of deze goed is aangesloten.",
+      "audioinput": "Geen microfoon gedetecteerd. Controleer of deze goed is aangesloten."
+    },
+    "deviceInUse": {
+      "videoinput": "Camera niet beschikbaar: deze wordt waarschijnlijk gebruikt door een andere toepassing of een ander tabblad.",
+      "audioinput": "Microfoon niet beschikbaar: deze wordt waarschijnlijk gebruikt door een andere toepassing of een ander tabblad."
+    },
+    "settings": {
+      "audio": "Audio-instellingen",
+      "video": "Video-instellingen"
+    },
+    "effects": "Pas effecten toe",
+    "videoinput": {
+      "choose": "Selecteer camera",
+      "permissionsNeeded": "Selecteer camera - Toestemming vereist",
+      "disable": "Camera uitschakelen",
+      "enable": "Camera inschakelen",
+      "turnedOff": "Camera uitgeschakeld",
+      "turnedOn": "Camera ingeschakeld",
+      "label": "Camera",
+      "placeholder": "Schakel de camera in om de preview te zien"
+    },
+    "audioinput": {
+      "choose": "Selecteer microfoon",
+      "level": "Microfoon-ingangsniveau",
+      "muteTest": "Zet je microfoon aan om deze te testen",
+      "permissionsNeeded": "Selecteer microfoon - Toestemming vereist",
+      "disable": "Microfoon dempen",
+      "enable": "Microfoon dempen opheffen",
+      "turnedOff": "Microfoon uitgeschakeld",
+      "turnedOn": "Microfoon ingeschakeld",
+      "label": "Microfoon"
+    },
+    "audiooutput": {
+      "choose": "Selecteer luidspreker",
+      "permissionsNeeded": "Selecteer luidspreker - Toestemming vereist",
+      "test": "Luidsprekers testen",
+      "testing": "Testgeluid wordt afgespeeld…"
+    }
+  },
+  "join": {
+    "effects": {
+      "description": "Pas effecten toe",
+      "title": "Effecten",
+      "subTitle": "Configureer de effecten van uw camera."
+    },
+    "heading": "Deelnemen aan de vergadering",
+    "joinLabel": "Deelnemen",
+    "joinMeeting": "Deelnemen aan de vergadering",
+    "toggleOff": "Klik om uit te schakelen",
+    "toggleOn": "Klik om in te schakelen",
+    "usernameHint": "Getoond aan andere deelnemers",
+    "usernameLabel": "Uw naam",
+    "errors": {
+      "usernameEmpty": "Uw naam kan niet leeg zijn"
+    },
+    "cameraDisabled": "Camera is uitgeschakeld.",
+    "cameraNotFound": "Geen camera gedetecteerd. Controleer of deze goed is aangesloten.",
+    "cameraInUse": "Je camera is niet beschikbaar. Deze wordt waarschijnlijk gebruikt door een andere toepassing of een ander tabblad.",
+    "cameraStarting": "Camera wordt ingeschakeld…",
+    "cameraNotGranted": "Wilt u dat anderen u tijdens de vergadering kunnen zien?",
+    "cameraAndMicNotGranted": "Wilt u dat anderen u tijdens de vergadering kunnen zien en horen?",
+    "permissionsButton": {
+      "cameraAndMicNotGranted": "Toegang tot camera en microfoon toestaan",
+      "cameraNotGranted": "Toegang tot camera toestaan"
+    },
+    "videoPreview": {
+      "enabled": "Videovoorbeeld ingeschakeld",
+      "disabled": "Videovoorbeeld uitgeschakeld"
+    },
+    "waiting": {
+      "title": "Verzoek tot deelname...",
+      "body": "U kunt deelnemen aan dit gesprek wanneer iemand u toestemming geeft"
+    },
+    "denied": {
+      "title": "U kunt niet deelnemen aan dit gesprek",
+      "body": "Uw verzoek tot deelname is geweigerd."
+    },
+    "timeoutInvite": {
+      "title": "U kunt niet deelnemen aan dit gesprek",
+      "body": "Niemand heeft gereageerd op uw verzoek om deel te nemen aan het gesprek"
+    }
+  },
+  "leaveRoomPrompt": "Dat zal u de vergadering doen verlaten.",
+  "shareDialog": {
+    "copy": "Informatie kopiëren",
+    "copyUrl": "Kopieerlink",
+    "copied": "Informatie gekopieerd",
+    "heading": "Uw vergadering is klaar",
+    "description": "Deel deze link met mensen die u wilt uitnodigen voor de vergadering.",
+    "permissions": "Mensen met deze link hebben uw toestemming niet nodig om deel te nemen aan deze vergadering.",
+    "closeDialog": "Sluit het dialoogvenster",
+    "phone": {
+      "call": "Bel:",
+      "pinCode": "Code:"
+    }
+  },
+  "pagination": {
+    "label": "Pagina's van deelnemers",
+    "count": "{{currentPage}} van {{totalPageCount}}",
+    "next": "volgende pagina",
+    "previous": "vorige pagina"
+  },
+  "mediaErrorDialog": {
+    "DeviceInUse": {
+      "title": {
+        "audioinput": "Microfoon activeren mislukt",
+        "videoinput": "Camera activeren mislukt"
+      },
+      "body": {
+        "audioinput": "Je microfoon wordt al gebruikt door een ander tabblad of een andere toepassing, waardoor deze niet geactiveerd kan worden in dit videogesprek. Sluit indien gewenst het andere tabblad of de toepassing om je microfoon hier te gebruiken.",
+        "videoinput": "Je camera wordt al gebruikt door een ander tabblad of een andere toepassing, waardoor deze niet geactiveerd kan worden in dit videogesprek. Sluit indien gewenst het andere tabblad of de toepassing om je camera hier te gebruiken."
+      }
+    },
+    "NotFound": {
+      "title": {
+        "audioinput": "Geen microfoon gedetecteerd",
+        "videoinput": "Geen camera gedetecteerd"
+      },
+      "body": {
+        "audioinput": "Er is geen microfoon gedetecteerd op je apparaat. Controleer of deze goed is aangesloten en niet door een schakelaar is gedempt, en probeer het opnieuw.",
+        "videoinput": "Er is geen camera gedetecteerd op je apparaat. Controleer of deze goed is aangesloten en niet door een afdekking of schakelaar wordt geblokkeerd, en probeer het opnieuw."
+      }
+    },
+    "close": "OK"
+  },
+  "permissionErrorDialog": {
+    "heading": {
+      "camera": "{{appTitle}} mag uw camera niet gebruiken",
+      "microphone": "{{appTitle}} mag uw microfoon niet gebruiken",
+      "cameraAndMicrophone": "{{appTitle}} mag uw microfoon en camera niet gebruiken",
+      "default": "{{appTitle}} heeft geen toestemming voor bepaalde rechten"
+    },
+    "body": {
+      "openMenu": {
+        "others": "Klik op het instellingenpictogram ICON_PLACEHOLDER in de adresbalk van uw browser",
+        "safari": "Klik op het menu 'Safari' en open 'Instellingen voor {{appDomain}}'."
+      },
+      "details": {
+        "camera": "Toegang tot de camera toestaan",
+        "microphone": "Toegang tot de microfoon toestaan",
+        "cameraAndMicrophone": "Toegang tot camera en microfoon toestaan",
+        "default": "Schakel de vereiste machtigingen in."
+      }
+    }
+  },
+  "systemPermissionDialog": {
+    "heading": {
+      "camera": "Geef je browser toestemming om je camera te gebruiken",
+      "microphone": "Geef je browser toestemming om je microfoon te gebruiken",
+      "cameraAndMicrophone": "Geef je browser toestemming om je camera en microfoon te gebruiken"
+    },
+    "device": {
+      "camera": "camera",
+      "microphone": "microfoon",
+      "cameraAndMicrophone": "camera en microfoon"
+    },
+    "intro": "Je browser heeft al toestemming, maar de systeeminstellingen van je computer blokkeren de toegang tot je {{device}}.",
+    "steps": {
+      "macos": {
+        "1": "Open in Systeeminstellingen “Privacy en beveiliging”.",
+        "2": "Geef je browser toegang tot je {{device}}."
+      },
+      "windows": {
+        "1": "Open in de Windows-instellingen “Privacy en beveiliging”.",
+        "2": "Zet {{device}}-toegang aan en sta desktop-apps toe deze te gebruiken."
+      },
+      "android": {
+        "1": "Open in de Android-instellingen “Apps” en kies je browser.",
+        "2": "Sta bij “Machtigingen” toegang tot je {{device}} toe en herlaad daarna de pagina."
+      },
+      "other": {
+        "1": "Geef je browser in de privacy-instellingen van je systeem toegang tot je {{device}}.",
+        "2": "Probeer het daarna opnieuw."
+      }
+    },
+    "openSettings": "Systeeminstellingen openen"
+  },
+  "silentMic": {
+    "tooltip": "Je microfoon staat aan, maar er wordt geen geluid gedetecteerd. Klik voor meer informatie.",
+    "dialog": {
+      "title": "Geen geluid gedetecteerd",
+      "intro": "Je microfoon staat aan, maar er is al een tijdje geen geluid gedetecteerd. Controleer het volgende:",
+      "causes": {
+        "system": "De privacyinstellingen van je systeem blokkeren mogelijk de toegang tot je microfoon.",
+        "hardware": "Mogelijk staat er een mute-schakelaar aan, of is je microfoon niet aangesloten of defect.",
+        "wrongDevice": "Mogelijk is de verkeerde microfoon geselecteerd. Kies een andere microfoon in het microfoonmenu."
+      },
+      "hint": "Spreek opnieuw nadat je dit hebt gecontroleerd. De waarschuwing verdwijnt zodra er geluid wordt gedetecteerd.",
+      "close": "Begrepen",
+      "discard": "Detectie van een stille microfoon uitschakelen"
+    }
+  },
+  "permissionsButton": {
+    "tooltip": "Meer info",
+    "ariaLabel": "Probleem met machtigingen. Meer info weergeven"
+  },
+  "error": {
+    "createRoom": {
+      "heading": "Verificatie vereist",
+      "body": "Deze ruimte is nog niet gemaakt. Logt u alstublieft in om hem aan te maken, of wacht tot een ingelogde gebruiker dat doet."
+    },
+    "screenShare": {
+      "title": "Kan uw scherm niet delen",
+      "ariaLabel": "Kan uw scherm niet delen",
+      "message": "Het is mogelijk dat uw browser geen toestemming heeft om het scherm op uw computer op te nemen.",
+      "settingsInstructions": "Ga naar uw",
+      "settingsLabel": {
+        "macos": "Systeemvoorkeuren",
+        "windows": "Windows-privacyinstellingen"
+      },
+      "helpLinkText": "Meer informatie, zie",
+      "helpLinkLabel": "Presentatieprobleem",
+      "closeButton": "Negeren",
+      "newTab": "Nieuw venster"
+    }
+  },
+  "isIdleDisconnectModal": {
+    "title": "Ben je er nog?",
+    "body": "Je bent de enige deelnemer. Dit gesprek wordt over {{duration}} beëindigd. Wil je het gesprek voortzetten?",
+    "settingsPrefix": "Om dit bericht niet meer te zien, ga naar",
+    "settingsLink": "Instellingen > Algemeen",
+    "settingsSuffix": ".",
+    "stayButton": "Gesprek voortzetten",
+    "leaveButton": "Nu verlaten",
+    "countdownAnnouncement": "Het gesprek eindigt over {{duration}}."
+  },
+  "controls": {
+    "region": "Gespreksbesturing",
+    "microphone": "Microfoon",
+    "camera": "Camera",
+    "chat": {
+      "open": "Sluit de chat",
+      "closed": "Open de chat",
+      "input": {
+        "textArea": {
+          "label": "Voer een bericht in",
+          "placeholder": "Voer een bericht in"
+        },
+        "button": {
+          "label": "Stuur bericht"
+        }
+      }
+    },
+    "info": {
+      "open": "Informatie verbergen",
+      "closed": "Informatie tonen"
+    },
+    "hand": {
+      "raise": "Hand opsteken",
+      "lower": "Hand laten zakken"
+    },
+    "subtitles": {
+      "closed": "Ondertitels weergeven",
+      "open": "Ondertitels verbergen"
+    },
+    "screenShare": {
+      "start": "Scherm delen",
+      "stop": "Stop schermdelen"
+    },
+    "leave": "Vertrekken",
+    "participants": {
+      "open": "Verberg iedereen",
+      "closed": "Toon iedereen",
+      "count_one": "{{count}} deelnemer",
+      "count_other": "{{count}} deelnemers"
+    },
+    "tools": {
+      "open": "Meer tools verbergen",
+      "closed": "Meer tools weergeven"
+    },
+    "admin": {
+      "open": "Verberg beheerder",
+      "closed": "Toon beheerder"
+    },
+    "moreOptions": "Meer opties",
+    "reactions": {
+      "button": "Stuur reactie",
+      "toolbar": "Stuur reactie",
+      "announce": "{{name}} : {{emoji}}",
+      "you": "U",
+      "emojis": {
+        "thumbs-up": "duim omhoog",
+        "thumbs-down": "duim omlaag",
+        "clapping-hands": "applaudisserende handen",
+        "red-heart": "rood hart",
+        "face-with-tears-of-joy": "gezicht met tranen van vreugde",
+        "face-with-open-mouth": "verrast gezicht",
+        "party-popper": "feestknaller",
+        "folded-hands": "gevouwen handen"
+      }
+    }
+  },
+  "pictureInPicture": {
+    "placeholder": {
+      "title": "Uw videogesprek bevindt zich in een ander venster.",
+      "description": "Met de beeld-in-beeld-modus kunt u verbonden blijven met het gesprek terwijl u andere taken uitvoert.",
+      "bringBack": "Gesprek hier terughalen"
+    },
+    "stage": "Deelnemers",
+    "controlBar": "Vergaderbesturing",
+    "title": "Beeld-in-beeld vergadering"
+  },
+  "options": {
+    "buttonLabel": "Meer opties",
+    "items": {
+      "feedback": "Geef ons feedback",
+      "settings": "Instellingen",
+      "transcript": "Transcriptie",
+      "screenRecording": "Schermopname",
+      "username": "Verander uw naam",
+      "effects": "Pas effecten toe",
+      "switchCamera": "Selecteer camera",
+      "pictureInPicture": {
+        "enter": "Beeld-in-beeld",
+        "exit": "Beeld-in-beeld sluiten"
+      },
+      "fullscreen": {
+        "enter": "Volledig scherm",
+        "exit": "Stop volledig scherm stand"
+      },
+      "support": "Contact ondersteuning",
+      "documentation": "Documentatie"
+    }
+  },
+  "effects": {
+    "activateCamera": "Uw camera is uitgeschakeld. Kies een optie om deze in te schakelen.",
+    "cameraDisabled": "Uw camera is uitgeschakeld.",
+    "notAvailable": "Video-effecten zijn binnenkort beschikbaar in uw browser. We werken eraan! In de tussentijd kunt u Google Chrome gebruiken voor de beste prestaties of Firefox :(",
+    "heading": "Vervaging",
+    "clear": "Effect uitschakelen",
+    "blur": {
+      "title": "Achtergrondvervaging",
+      "status": {
+        "none": "Achtergrond scherp.",
+        "light": "Achtergrond licht vervaagd.",
+        "strong": "Achtergrond sterk vervaagd."
+      },
+      "light": {
+        "apply": "Vervaag je achtergrond lichtjes",
+        "clear": "Vervaging uitschakelen"
+      },
+      "normal": {
+        "apply": "Vervaag je achtergrond",
+        "clear": "Vervaging uitschakelen"
+      }
+    },
+    "virtual": {
+      "title": "Virtuele achtergrond",
+      "selectedLabel": "Achtergrond toegepast:",
+      "apply": "Vervang je achtergrond:",
+      "personal": {
+        "title": "Mijn achtergronden",
+        "selectedLabel": "Deselecteer de achtergrond (deze is momenteel toegepast).",
+        "apply": "Gebruik als achtergrond.",
+        "selectFileTooltip": "Selecteer een afbeeldingsbestand om te gebruiken als persoonlijke achtergrond",
+        "notLoggedInWarning": "U bent niet ingelogd, persoonlijke achtergronden worden niet opgeslagen van de ene vergadering naar de andere.",
+        "warningUploadDisabled": "Persoonlijke achtergronden worden momenteel niet opgeslagen van de ene vergadering naar de andere.",
+        "uploadLimitReached": "U kunt geen persoonlijke achtergronden meer uploaden.",
+        "uploadInProgress": "Afbeelding wordt geüpload…",
+        "deleteLabel": "Aangepaste achtergrond verwijderen.",
+        "errors": {
+          "close": "Sluiten",
+          "file_too_large": {
+            "title": "Bestand te groot",
+            "description": "Het bestand is te groot. Kies een bestand kleiner dan {{maxSize, number}} MB."
+          },
+          "invalid_file_type": {
+            "title": "Ongeldig bestandstype",
+            "description": "Het bestandstype wordt niet ondersteund. Kies een {{allowedExtension, list(type: 'disjunction')}} bestand."
+          }
+        }
+      },
+      "presets": {
+        "title": "Suggesties",
+        "descriptions": {
+          "0": "Geprofileerd houten meubel",
+          "1": "Vergaderruimte",
+          "2": "Loft met zwarte glaswand",
+          "3": "Eetkamer",
+          "4": "Houten planken",
+          "5": "Houten trap",
+          "6": "Grijze bibliotheek",
+          "7": "Koffiebar"
+        }
+      }
+    },
+    "faceLandmarks": {
+      "title": "Visuele effecten",
+      "glasses": {
+        "apply": "Bril toevoegen",
+        "clear": "Bril verwijderen"
+      },
+      "french": {
+        "apply": "Franse stijl toevoegen",
+        "clear": "Franse stijl verwijderen"
+      }
+    }
+  },
+  "sidePanel": {
+    "ariaLabel": "Zijbalk - {{title}}",
+    "backToTools": "Terug naar vergadertools",
+    "heading": {
+      "participants": "Deelnemers",
+      "effects": "Effecten",
+      "chat": "Berichten in de chat",
+      "transcript": "Transcriberen",
+      "screenRecording": "Opnemen",
+      "admin": "Beheerdersbediening",
+      "tools": "Meer tools",
+      "info": "Vergaderinformatie"
+    },
+    "content": {
+      "participants": "deelnemers",
+      "effects": "effecten",
+      "chat": "berichten",
+      "screenRecording": "opnemen",
+      "transcript": "transcriberen",
+      "admin": "beheerdersbediening",
+      "tools": "meer tools",
+      "info": "vergaderinformatie"
+    },
+    "closeButton": "Verberg {{content}} (Escape)",
+    "escapeHint": "Druk op Escape om te sluiten"
+  },
+  "chat": {
+    "disclaimer": "De berichten zijn alleen voor de deelnemers zichtbaar op het moment dat ze worden verzonden. Alle berichten worden verwijderd aan het einde van het gesprek.",
+    "messagesLog": "Chatberichten"
+  },
+  "moreTools": {
+    "body": "Je krijgt toegang tot meer tools om je vergaderingen te verbeteren.",
+    "linkAriaLabel": "Documentatie over tools openen - opent in nieuw venster",
+    "moreLink": "Documentatie openen",
+    "tools": {
+      "transcript": {
+        "title": "Transcriberen",
+        "body": "Zet vergaderingen om in tekst."
+      },
+      "screenRecording": {
+        "title": "Opnemen",
+        "body": "Sla vergaderingen op als video."
+      }
+    }
+  },
+  "info": {
+    "roomInformation": {
+      "title": "Verbindingsinformatie",
+      "button": {
+        "ariaLabel": "Kopieer de informatie van uw vergadering",
+        "copy": "Informatie kopiëren",
+        "copied": "Informatie gekopieerd"
+      },
+      "phone": {
+        "call": "Bel:",
+        "pinCode": "Code:"
+      }
+    }
+  },
+  "transcript": {
+    "heading": "Transcribeer uw vergadering met de AI-assistent",
+    "body": "Transcribeer tot {{max_duration}} aan vergadertijd.",
+    "bodyWithoutMaxDuration": "Transcribeer uw vergadering zonder limiet.",
+    "details": {
+      "receiver": "Het transcript wordt verzonden naar de host en de co-host.",
+      "destination": "Er wordt een nieuw document aangemaakt op",
+      "destinationUnknown": "Een nieuw document wordt aangemaakt",
+      "language": "Vergadertalen:",
+      "recording": "Start ook een video-opname"
+    },
+    "button": {
+      "start": "Begin met het transcriberen van de vergadering",
+      "stop": "Stop met het transcriberen van de vergadering",
+      "saving": "Opslaan…",
+      "starting": "Wordt gestart…",
+      "anotherModeStarted": "Er loopt een opname. <br/> Ga naar het menu en stop deze."
+    },
+    "linkMore": "Documentatie openen",
+    "linkAriaLabel": "Documentatie over transcriptie openen - opent in nieuw venster",
+    "notAdminOrOwner": {
+      "heading": "Toegang beperkt",
+      "body": "Om veiligheidsredenen kan alleen de maker of een beheerder van de vergadering een transcriptie starten (beta).",
+      "linkMore": "Documentatie openen",
+      "linkAriaLabel": "Documentatie over transcriptietoegang openen - opent in nieuw venster",
+      "dividerLabel": "OF",
+      "login": {
+        "heading": "Inloggen vereist",
+        "body": "Alleen de maker van de vergadering of een beheerder kan de transcriptie starten. Log in om uw machtigingen te controleren."
+      },
+      "request": {
+        "heading": "Transcriptie aanvragen",
+        "body": "De host wordt op de hoogte gebracht en kan de transcriptie voor u inschakelen.",
+        "buttonLabel": "Aanvragen"
+      }
+    },
+    "premium": {
+      "heading": "Geavanceerde functie",
+      "body": "Deze functie is niet voor u beschikbaar. Neem contact op met de ondersteuning voor meer informatie.",
+      "linkMore": "Documentatie openen",
+      "linkAriaLabel": "Documentatie over Geavanceerde functie openen - opent in nieuw venster",
+      "dividerLabel": "OF",
+      "login": {
+        "heading": "Inloggen vereist",
+        "body": "Alleen de maker van de vergadering of een beheerder kan de transcriptie starten. Log in om uw machtigingen te controleren."
+      },
+      "request": {
+        "heading": "Transcriptie aanvragen",
+        "body": "De host wordt op de hoogte gebracht en kan de transcriptie voor u inschakelen.",
+        "buttonLabel": "Aanvragen"
+      }
+    }
+  },
+  "screenRecording": {
+    "heading": "Neem dit gesprek op voor later",
+    "body": "Neem tot {{max_duration}} van de vergadering op.",
+    "bodyWithoutMaxDuration": "Neem je vergadering onbeperkt op.",
+    "linkMore": "Documentatie openen",
+    "linkAriaLabel": "Documentatie over opname openen - opent in nieuw venster",
+    "details": {
+      "receiver": "De opname wordt verzonden naar de host en co-hosts.",
+      "destination": "Deze opname wordt tijdelijk op onze servers bewaard",
+      "loading": "Opname wordt gestart",
+      "linkMore": "Meer informatie",
+      "transcription": "Transcribeer deze opname"
+    },
+    "button": {
+      "start": "Start met opnemen van de vergadering",
+      "stop": "Stop met opnemen van de vergadering",
+      "saving": "Bezig met opslaan…",
+      "starting": "Wordt gestart…",
+      "anotherModeStarted": "Er loopt een transcriptie. <br/> Ga naar het menu en stop deze."
+    },
+    "notAdminOrOwner": {
+      "heading": "Toegang beperkt",
+      "body": "Om veiligheidsredenen kan alleen de maker of een beheerder van de vergadering een opname starten (beta).",
+      "linkMore": "Documentatie openen",
+      "linkAriaLabel": "Documentatie over opnametoegang openen - opent in nieuw venster",
+      "dividerLabel": "OF",
+      "login": {
+        "heading": "Inloggen vereist",
+        "body": "Alleen de maker van de vergadering of een beheerder kan de opname starten. Log in om uw machtigingen te controleren."
+      },
+      "request": {
+        "heading": "Opname aanvragen",
+        "body": "De host wordt op de hoogte gebracht en kan de opname voor u inschakelen.",
+        "buttonLabel": "Aanvragen"
+      }
+    },
+    "premium": {
+      "heading": "Geavanceerde functie",
+      "body": "Deze functie is niet voor u beschikbaar. Neem contact op met de ondersteuning voor meer informatie.",
+      "linkMore": "Documentatie openen",
+      "linkAriaLabel": "Documentatie over Geavanceerde functie openen - opent in nieuw venster",
+      "dividerLabel": "OF",
+      "login": {
+        "heading": "Inloggen vereist",
+        "body": "Alleen de maker van de vergadering of een beheerder kan de opname starten. Log in om uw machtigingen te controleren."
+      },
+      "request": {
+        "heading": "Opname aanvragen",
+        "body": "De host wordt op de hoogte gebracht en kan de opname voor u inschakelen.",
+        "buttonLabel": "Aanvragen"
+      }
+    },
+    "durationMessage": "(beperkt tot {{max_duration}})"
+  },
+  "errorRecordingAlertDialog": {
+    "title": "Opname mislukt",
+    "body": {
+      "stop": "We konden de opname niet stoppen. Probeer het over enkele ogenblikken opnieuw.",
+      "start": "We konden de opname niet starten. Probeer het over enkele ogenblikken opnieuw."
+    },
+    "button": "Opnieuw proberen"
+  },
+  "admin": {
+    "description": "Deze hostinstellingen geven u controle over uw vergadering. Alleen hosts hebben toegang tot deze bedieningselementen.",
+    "access": {
+      "title": "Toegang tot vergadering",
+      "description": "Deze instellingen zijn ook van toepassing op toekomstige sessies van deze vergadering.",
+      "type": "Vergaderings toegangstypen",
+      "levels": {
+        "public": {
+          "label": "Open",
+          "description": "Niemand hoeft toestemming te vragen om deel te nemen aan de vergadering."
+        },
+        "trusted": {
+          "label": "Open voor vertrouwde personen",
+          "description": "Geauthenticeerde personen hoeven geen toestemming te vragen om deel te nemen aan de vergadering."
+        },
+        "restricted": {
+          "label": "Beperkt",
+          "description": "Personen die niet zijn uitgenodigd voor de vergadering moeten vragen om deel te nemen."
+        }
+      }
+    },
+    "moderation": {
+      "title": "Moderatie van de vergadering",
+      "description": "Deze instellingen beperken de acties die deelnemers tijdens de vergadering kunnen uitvoeren.",
+      "microphone": {
+        "label": "Microfoon inschakelen",
+        "description": ""
+      },
+      "camera": {
+        "label": "Video inschakelen",
+        "description": ""
+      },
+      "screenshare": {
+        "label": "Hun scherm delen",
+        "description": "Als u deze optie uitschakelt, kunnen deelnemers hun scherm niet meer delen en wordt elke lopende schermdeling onmiddellijk gestopt."
+      },
+      "mute": {
+        "label": "Anderen dempen",
+        "description": "Wanneer uitgeschakeld, kunnen deelnemers andere deelnemers niet meer dempen."
+      }
+    }
+  },
+  "rating": {
+    "submit": "Indienen",
+    "question": "Wat vindt u van de kwaliteit van het gesprek?",
+    "levels": {
+      "min": "erg slecht",
+      "max": "uitstekend"
+    }
+  },
+  "openFeedback": {
+    "question": "Wat kunnen we doen om ons te verbeteren?",
+    "placeholder": "Beschrijf uw problemen of deel uw suggesties ...",
+    "submit": "Indienen",
+    "skip": "Overslaan"
+  },
+  "confirmationMessage": {
+    "heading": "Bedankt voor uw inzending",
+    "body": "Ons productteam neemt de tijd om uw feedback zorgvuldig te bekijken. We zullen zo snel mogelijk antwoorden."
+  },
+  "authenticationMessage": {
+    "heading": "Hoe kunnen we contact met u opnemen?",
+    "placeholder": "Uw e-mail",
+    "submit": "Verzenden",
+    "ignore": "Negeren"
+  },
+  "participants": {
+    "subheading": "In de ruimte",
+    "you": "U",
+    "unknown": "Onbekende deelnemer",
+    "host": "Host",
+    "cohost": "Co-host",
+    "member": "Lid",
+    "contributors": "Deelnemers",
+    "collapsable": {
+      "open": "Open {{name}} lijst",
+      "close": "Sluit {{name}} lijst"
+    },
+    "unauthenticated": {
+      "badge": "Niet authentifizierter Benutzer"
+    },
+    "muteYourself": "Uw microfoon dempen",
+    "muteParticipant": "Demp de microfoon van {{name}}",
+    "muteParticipantAlert": {
+      "heading": "Demp {{name}}",
+      "description": "Demp {{name}} voor alle deelnemers? {{name}} zal de enige zijn die dempen voor zichzelf kan opheffen.",
+      "confirm": "Dempen",
+      "cancel": "Annuleren"
+    },
+    "raisedHands": "Opgestoken handen",
+    "lowerParticipantHand": "Laat {{name}}'s hand zakken",
+    "lowerParticipantsHand": "Laat alle handen zakken",
+    "muteParticipants": "Alle microfoons dempen",
+    "waiting": {
+      "title": "Wachtkamer",
+      "accept": {
+        "button": "Accepteren",
+        "label": "{{name}} toelaten tot de vergadering",
+        "all": "Alles accepteren"
+      },
+      "deny": {
+        "button": "Weigeren",
+        "label": "{{name}} weigeren voor de vergadering",
+        "all": "Alles weigeren"
+      }
+    },
+    "moreOptions": "Meer opties"
+  },
+  "participantMenu": {
+    "remove": {
+      "label": "Van het gesprek uitsluiten",
+      "ariaLabel": "{{name}} van het gesprek uitsluiten"
+    },
+    "unpin": {
+      "label": "Losmaken",
+      "ariaLabel": "Maak {{name}} los"
+    },
+    "pin": {
+      "label": "Pinnen",
+      "ariaLabel": "Maak {{name}} vast"
+    },
+    "promote": {
+      "label": "Co-host maken",
+      "ariaLabel": "{{name}} co-host maken"
+    },
+    "demote": {
+      "label": "Co-hostrol verwijderen",
+      "ariaLabel": "De co-hostrol van {{name}} verwijderen"
+    }
+  },
+  "pinAnnouncements": {
+    "pin": "De video van {{name}} is vastgezet.",
+    "unpin": "De video van {{name}} is niet meer vastgezet.",
+    "self": {
+      "pin": "Uw video is vastgezet.",
+      "unpin": "Uw video is niet meer vastgezet."
+    }
+  },
+  "recordingStateToast": {
+    "transcript": {
+      "started": "Transcriptie bezig",
+      "starting": "Transcriptie begint",
+      "stopping": "Transcriptie stopt"
+    },
+    "screen_recording": {
+      "started": "Opname bezig",
+      "starting": "Opname starten",
+      "stopping": "Opname stoppen"
+    },
+    "any": {
+      "started": "Opname bezig"
+    },
+    "limitReachedAlert": {
+      "title": "Opnamelimiet overschreden",
+      "description": "De opname heeft de maximaal toegestane duur{{duration_message}} overschreden. Deze wordt nu automatisch opgeslagen.",
+      "durationMessage": " van {{duration}}",
+      "button": "OK"
+    }
+  },
+  "participantTileFocus": {
+    "containerLabel": "Opties voor {{name}}",
+    "toolbarHint": "{{shortcut}}: direct toegang tot de sneltoetsen.",
+    "pin": {
+      "enable": "Pinnen",
+      "disable": "Losmaken"
+    },
+    "effects": "Pas visuele effecten toe",
+    "muteParticipant": "Demp {{name}}",
+    "fullScreen": "Volledig scherm"
+  },
+  "shortcutsPanel": {
+    "title": "Sneltoetsen",
+    "categories": {
+      "navigation": "Navigatie",
+      "media": "Media",
+      "interaction": "Interactie"
+    },
+    "actions": {
+      "open-shortcuts": "Sneltoetsenhulp openen",
+      "focus-toolbar": "Focus op de onderste werkbalk",
+      "toggle-microphone": "Microfoon aan/uit",
+      "toggle-camera": "Camera aan/uit",
+      "push-to-talk": "Push-to-talk (ingedrukt houden om te activeren)",
+      "reaction": "Reactiepaneel",
+      "fullscreen": "Volledig scherm wisselen",
+      "recording": "Opnamepaneel wisselen",
+      "raise-hand": "Hand opsteken of laten zakken",
+      "toggle-chat": "Chat tonen/verbergen",
+      "toggle-participants": "Deelnemers tonen/verbergen",
+      "open-shortcuts-settings": "Sneltoets-instellingen openen"
+    },
+    "sr": {
+      "control": "Control",
+      "command": "Command",
+      "alt": "Alt",
+      "option": "Option",
+      "shift": "Shift",
+      "plus": "plus",
+      "hold": "Houd {{key}} ingedrukt",
+      "noShortcut": "Geen sneltoets"
+    },
+    "visual": {
+      "hold": "Houd {{key}} ingedrukt"
+    }
+  },
+  "fullScreenWarning": {
+    "message": "Om niet oneindige uw scherm in zichzelf te delen, kunt u beter niet het hele scherm delen. Deel in plaats daarvan een tab of een ander venster.",
+    "stop": "Stop met presenteren",
+    "ignore": "Negeren"
+  },
+  "participantTile": {
+    "screenShare": "{{name}} scherm"
+  }
+}

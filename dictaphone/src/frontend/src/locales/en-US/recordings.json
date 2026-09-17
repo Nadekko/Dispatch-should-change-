@@ -1,0 +1,210 @@
+{
+  "title": "Assistant Transcripts (beta)",
+  "newRecording": "New recording",
+  "myRecordings": "My recordings",
+  "mySavedRecordings": "My saved recordings",
+  "errorFetching": "Error fetching recordings",
+  "noRecordings": "You don't have any recordings yet.",
+  "noRecordingsTrash": "You don't have any recordings in the trash.",
+  "notFound": "Recording not found",
+  "deleted": "Deleted",
+  "subtitle": "Record your in-person meetings and access your transcripts.",
+  "logoAlt": "Assistant Transcripts",
+  "uploadButtonAriaLabel": "Upload recordings",
+  "uploadInputAriaLabel": "Upload audio recordings",
+  "metadata": {
+    "ariaLabel": "Recording metadata",
+    "audioKeptUntil": "Audio recording is kept until {{value, formatDate}}",
+    "fileKeptUntil": "Transcript is kept until {{value, formatDate}}",
+    "dataPolicyTooltip": "Your recordings are kept on our servers for {{originalDataKeptFor}} days. The transcripts (text) are kept for {{transcriptDataKeptFor}} days. This policy applies to new recordings and may differ for older recordings."
+  },
+  "audioExtraction": {
+    "pending": "Preparing audio",
+    "extracting": "Converting audio",
+    "transcriptPending": "We first preprocess your audio before transcription can begin. This usually takes a few seconds to a few minutes.",
+    "failed": "Invalid audio file",
+    "failedDescription": "We couldn't extract the audio from the file, it might be corrupted.",
+    "failedAriaLabel": "Audio extraction failed"
+  },
+  "createInDocsModal": {
+    "title": "Creating your Docs document",
+    "description": "Please wait while your transcript is added to Docs."
+  },
+  "uploadTooltip": {
+    "title": "Upload files",
+    "supportedFormats": "Supported formats: {{formats, list}}",
+    "noSupportedFormats": "none",
+    "maxFileSize": "Max file size: {{maxSize}}",
+    "maxDuration": "Max file duration: {{duration, formatDuration}}"
+  },
+  "recovery": {
+    "blockNewRecordingAlert": "A recording hasn't been transferred and is still stored locally. Please transfer it or delete it before starting a new recording."
+  },
+  "localQueue": {
+    "title": "Local recordings waiting for upload",
+    "description": "These recordings are still stored in this browser.",
+    "recordingLabel": "Recording {{value, formatDateTimeStatic}}",
+    "tooltip": {
+      "notUploaded": "Recording hasn't been uploaded yet",
+      "failedToUpload": "Uploading failed, please retry or download the recording for later upload.",
+      "interrupted": "The recording was abruptly interrupted. You can retry uploading the part that has been saved."
+    },
+    "uploadFailed": "Upload failed.",
+    "confirmDiscard": "Discard this local recording? (it will be lost forever)",
+    "actions": {
+      "upload": "Upload",
+      "retry": "Retry",
+      "retryAriaLabel": "Retry uploading this recording",
+      "download": "Download",
+      "discard": "Discard"
+    }
+  },
+  "list": {
+    "title": "My recordings",
+    "titleTrash": "Trash",
+    "trashInfo": "Files are permanently deleted after 30 days",
+    "openRecording": "Open recording {{title}}",
+    "ariaLabelTable": "Recordings list",
+    "paginationAriaLabel": "Recordings pagination",
+    "paginationPreviousAriaLabel": "Go to previous page",
+    "paginationNextAriaLabel": "Go to next page",
+    "loadMore": "Load more",
+    "loadingMore": "Loading..."
+  },
+  "actions": {
+    "cta": "Actions",
+    "moreOptionsAriaLabel": "More options for {{title}}",
+    "delete": {
+      "label": "Delete",
+      "success": "Recording deleted",
+      "error": "Failed to delete recording"
+    },
+    "deleteModal": {
+      "title": "Delete recording",
+      "description": "Are you sure you want to delete this recording and associated transcript? The transcript exported to Docs will remain available in Docs."
+    },
+    "restore": {
+      "label": "Restore",
+      "success": "Recording restored",
+      "error": "Failed to restore recording"
+    },
+    "rename": {
+      "label": "Rename",
+      "success": "Recording renamed",
+      "error": "Failed to rename recording"
+    },
+    "retry": {
+      "label": "Retry",
+      "success": "Generation restarted",
+      "error": "Failed to restart generation",
+      "disabledPendingLabel": "Retry (in progress)"
+    },
+    "changeLanguage": {
+      "label": "Change language",
+      "subLabel": "Reprocesses the recording",
+      "success": "New transcription requested successfully",
+      "error": "Failed to change the language of the transcription"
+    },
+    "export": {
+      "label": "Export",
+      "success": "Transcript exported",
+      "error": "Failed to export transcript"
+    },
+    "deletePermanently": {
+      "label": "Delete permanently",
+      "success": "Recording permanently deleted",
+      "error": "Failed to permanently delete recording"
+    },
+    "renameModal": {
+      "title": "Rename recording",
+      "label": "New title",
+      "placeholder": "Enter a new title"
+    },
+    "retryModal": {
+      "title": "Regenerate transcript",
+      "description": "Pick a language for the new generation.",
+      "mainAction": "Retry"
+    },
+    "changeLanguageModal": {
+      "title": "Change language",
+      "description": "Pick a language to transcribe this recording in.",
+      "selectLangLabel": "Language",
+      "languageOptions": {
+        "en": "English",
+        "fr": "French",
+        "de": "German",
+        "nl": "Dutch"
+      },
+      "extra": "Reprocessing takes a few minutes and replaces the current transcript.",
+      "mainAction": "Transcribe"
+    },
+    "exportModal": {
+      "title": "Export transcript",
+      "description": "Choose a format.",
+      "formatLabel": "Format",
+      "submit": "Export",
+      "formatOptions": {
+        "markdown": "Markdown",
+        "srt": "Subtitles (srt) - Beta",
+        "json": "Raw json"
+      }
+    }
+  },
+  "transcript": {
+    "title": "Transcript",
+    "segmentsAriaLabel": "Transcript segments",
+    "segmentSeekAriaLabel": "Seek to {{timestamp}} ({{speaker}})",
+    "noSpeaker": "Unknown speaker",
+    "openInDocsCta": "Open in Docs",
+    "createInDocsError": "Unable to create the Docs document right now. Please try again.",
+    "openInDocsError": "Unable to open the Docs document right now. Please try again.",
+    "copySuccess": "Transcript copied to clipboard",
+    "copyError": "Failed to copy transcript to clipboard",
+    "status": {
+      "pending": "Transcript is still being generated",
+      "failed": "Transcript generation failed",
+      "empty": "Transcript is empty",
+      "processing": "Processing ∼ {{value}}",
+      "processingLong": "Transcription is being generated and will be available in approximately <1>{{value}}</1>."
+    },
+    "statusPreview": {
+      "pending": "Pending transcription",
+      "failed": "Transcription error",
+      "success": "Transcript generated successfully"
+    },
+    "speaker": "Speaker"
+  },
+  "summary": {
+    "title": "Summary (beta)",
+    "status": {
+      "pending": "Summary is still being generated.",
+      "failed": "Summary generation failed.",
+      "empty": "Summary is empty.",
+      "notStarted": "Summary not available yet."
+    },
+    "statusPreview": {
+      "pending": "Pending summary",
+      "failed": "Summary error",
+      "success": "Summary generated successfully"
+    }
+  },
+  "player": {
+    "player": "Audio player",
+    "progressControl": "Audio progress control",
+    "volumeControl": "Volume control",
+    "play": "Play",
+    "pause": "Pause",
+    "rewind": "Rewind",
+    "forward": "Forward",
+    "speed1": "Set playback speed to 1x (currently 2x)",
+    "speed15": "Set playback speed to 1.5x (currently 1x)",
+    "speed2": "Set playback speed to 2x (currently 1.5x)",
+    "download": "Download",
+    "previous": "Previous",
+    "next": "Skip",
+    "loop": "Disable loop",
+    "loopOff": "Enable loop",
+    "volume": "Mute",
+    "volumeMute": "Unmute"
+  }
+}

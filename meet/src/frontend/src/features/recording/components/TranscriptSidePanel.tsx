@@ -1,0 +1,264 @@
+import { A, Button, Div, H, Text } from '@/primitives'
+
+import { css } from '@/styled-system/css'
+import { useRoomId } from '@/features/rooms/livekit/hooks/useRoomId'
+import { useRoomContext } from '@livekit/components-react'
+import {
+  RecordingMode,
+  useHasRecordingAccess,
+  useHasFeatureWithoutAdminRights,
+  useRecordingStatuses,
+} from '../index'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { FeatureFlags } from '@/features/analytics/enums'
+import {
+  NotificationType,
+  useNotifyParticipants,
+  notifyRecordingSaveInProgress,
+} from '@/features/notifications'
+import { useConfig } from '@/api/useConfig'
+import { VStack } from '@/styled-system/jsx'
+import { Checkbox } from '@/primitives/Checkbox.tsx'
+
+import {
+  SettingsDialogExtendedKey,
+  useTranscriptionLanguage,
+} from '@/features/settings'
+import { NoAccessView } from './NoAccessView'
+import { ControlsButton } from './ControlsButton'
+import { RowWrapper } from './RowWrapper'
+import { useMutateRecording } from '../hooks/useMutateRecording'
+import { useIsMetadataCollectorEnabled } from '../hooks/useMetadataCollectorEnabled'
+import { useSidePanel } from '@/features/rooms/livekit/hooks/useSidePanel'
+import { useIsAdminOrOwner } from '@/features/rooms/livekit/hooks/useIsAdminOrOwner'
+import { LimitDescription } from './LimitDescription'
+import { openSettingsDialog } from '@/stores/settings'
+import { captureEvent, reportError } from '@/features/analytics/telemetry'
+
+export const TranscriptSidePanel = () => {
+  const { data } = useConfig()
+
+  const keyPrefix = 'transcript'
+  const { t } = useTranslation('rooms', { keyPrefix })
+
+  const [includeScreenRecording, setIncludeScreenRecording] = useState(false)
+
+  const { notifyParticipants } = useNotifyParticipants()
+  const { selectedLanguageKey, selectedLanguageLabel, isLanguageSetToAuto } =
+    useTranscriptionLanguage()
+
+  const hasTranscriptAccess = useHasRecordingAccess(
+    RecordingMode.Transcript,
+    FeatureFlags.Transcript
+  )
+
+  const hasFeatureWithoutAdminRights = useHasFeatureWithoutAdminRights(
+    RecordingMode.Transcript,
+    FeatureFlags.Transcript
+  )
+
+  const isAdminOrOwner = useIsAdminOrOwner()
+
+  const isMetadataCollectorEnabled = useIsMetadataCollectorEnabled()
+
+  const roomId = useRoomId()
+
+  const { startRecording, isPendingToStart, stopRecording, isPendingToStop } =
+    useMutateRecording()
+
+  const statuses = useRecordingStatuses(RecordingMode.Transcript)
+
+  const room = useRoomContext()
+  const { openScreenRecording } = useSidePanel()
+
+  const handleRequestTranscription = async () => {
+    await notifyParticipants({
+      type: NotificationType.TranscriptionRequested,
+    })
+    captureEvent('transcript-requested', {})
+  }
+
+  const handleTranscript = async () => {
+    if (!roomId) {
+      console.warn('No room ID found')
+      return
+    }
+    try {
+      if (statuses.isStarted || statuses.isStarting) {
+        await stopRecording({ id: roomId })
+        setIncludeScreenRecording(false)
+
+        await notifyParticipants({
+          type: NotificationType.TranscriptionStopped,
+        })
+        notifyRecordingSaveInProgress(
+          RecordingMode.Transcript,
+          room.localParticipant
+        )
+      } else {
+        const recordingMode = includeScreenRecording
+          ? RecordingMode.ScreenRecording
+          : RecordingMode.Transcript
+
+        const recordingOptions = {
+          ...(!isLanguageSetToAuto && {
+            language: selectedLanguageKey,
+          }),
+          ...(includeScreenRecording && {
+            transcribe: true,
+            original_mode: RecordingMode.Transcript,
+          }),
+          collect_metadata: isMetadataCollectorEnabled,
+        }
+
+        await startRecording({
+          id: roomId,
+          mode: recordingMode,
+          options: recordingOptions,
+        })
+
+        await notifyParticipants({
+          type: NotificationType.TranscriptionStarted,
+        })
+        captureEvent('transcript-started', {
+          includeScreenRecording: includeScreenRecording,
+          language: selectedLanguageKey,
+        })
+      }
+    } catch (error) {
+      reportError('generic_failure', error, {
+        context: 'Failed to handle transcript:',
+      })
+    }
+  }
+
+  if (hasFeatureWithoutAdminRights) {
+    return (
+      <NoAccessView
+        i18nKeyPrefix={keyPrefix}
+        i18nKey="notAdminOrOwner"
+        helpArticle={data?.support?.help_article_transcript}
+        imagePath="/assets/intro-slider/3.png"
+        handleRequest={handleRequestTranscription}
+        isActive={statuses.isActive}
+      />
+    )
+  }
+
+  if (!hasTranscriptAccess) {
+    return (
+      <NoAccessView
+        i18nKeyPrefix={keyPrefix}
+        i18nKey="premium"
+        helpArticle={data?.support?.help_article_transcript}
+        imagePath="/assets/intro-slider/3.png"
+        handleRequest={handleRequestTranscription}
+        isActive={statuses.isActive}
+        isAdminOrOwner={isAdminOrOwner}
+      />
+    )
+  }
+
+  return (
+    <Div
+      display="flex"
+      overflowY="scroll"
+      padding="0 1.5rem"
+      flexGrow={1}
+      flexDirection="column"
+      alignItems="center"
+    >
+      <img
+        src="/assets/intro-slider/3.png"
+        alt=""
+        className={css({
+          minHeight: '250px',
+          height: '250px',
+          marginBottom: '1rem',
+          marginTop: '-16px',
+          '@media (max-height: 900px)': {
+            height: 'auto',
+            minHeight: 'auto',
+            maxHeight: '25%',
+            marginBottom: '0.75rem',
+          },
+          '@media (max-height: 770px)': {
+            display: 'none',
+          },
+        })}
+      />
+      <VStack gap={0} marginBottom={15}>
+        <H lvl={1} margin={'sm'}>
+          {t('heading')}
+        </H>
+        <LimitDescription
+          keyPrefix={'transcript'}
+          supportArticleLink={data?.support?.help_article_transcript}
+        />
+      </VStack>
+      <VStack gap={0} marginBottom={25}>
+        <RowWrapper iconName="article" position="first">
+          <Text variant="sm">
+            {data?.transcription_destination ? (
+              <>
+                {t('details.destination')}{' '}
+                <A
+                  href={data.transcription_destination}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  externalIcon
+                >
+                  {data.transcription_destination.replace('https://', '')}
+                </A>
+              </>
+            ) : (
+              t('details.destinationUnknown')
+            )}
+          </Text>
+        </RowWrapper>
+        <RowWrapper iconName="mail">
+          <Text variant="sm">{t('details.receiver')}</Text>
+        </RowWrapper>
+        <RowWrapper iconName="language" position="last">
+          <Text variant="sm">{t('details.language')}</Text>
+          <Text variant="sm">
+            <Button
+              variant="text"
+              size="xs"
+              onPress={() =>
+                openSettingsDialog(SettingsDialogExtendedKey.TRANSCRIPTION)
+              }
+            >
+              {selectedLanguageLabel}
+            </Button>
+          </Text>
+        </RowWrapper>
+        <div className={css({ height: '15px' })} />
+        <div
+          className={css({
+            width: '100%',
+            marginLeft: '20px',
+          })}
+        >
+          <Checkbox
+            size="sm"
+            isSelected={includeScreenRecording}
+            onChange={setIncludeScreenRecording}
+            isDisabled={statuses.isActive || isPendingToStart}
+          >
+            <Text variant="sm">{t('details.recording')}</Text>
+          </Checkbox>
+        </div>
+      </VStack>
+      <ControlsButton
+        i18nKeyPrefix={keyPrefix}
+        handle={handleTranscript}
+        statuses={statuses}
+        isPendingToStart={isPendingToStart}
+        isPendingToStop={isPendingToStop}
+        openSidePanel={openScreenRecording}
+      />
+    </Div>
+  )
+}

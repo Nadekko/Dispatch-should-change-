@@ -1,0 +1,152 @@
+load('ext://uibutton', 'cmd_button', 'bool_input', 'location')
+load('ext://namespace', 'namespace_create', 'namespace_inject')
+namespace_create('meet')
+
+DEV_ENV = os.getenv('DEV_ENV', 'dev-keycloak')
+
+if DEV_ENV == 'dev-dinum':
+    update_settings(suppress_unused_image_warnings=["localhost:5001/meet-frontend-generic:latest"])
+
+if DEV_ENV == 'dev-keycloak':
+    update_settings(suppress_unused_image_warnings=["localhost:5001/meet-frontend-dinum:latest"])
+
+
+def clean_old_images(image_name):
+    local('docker images -q %s | tail -n +2 | xargs -r docker rmi' % image_name)
+
+docker_build(
+    'localhost:5001/meet-backend:latest',
+    context='..',
+    dockerfile='../Dockerfile',
+    only=['./src/backend', './src/mail', './docker'],
+    target = 'backend-production',
+    live_update=[
+        sync('../src/backend', '/app'),
+        run(
+            'uv sync --locked --no-dev',
+            trigger=['../src/backend/uv.lock', '../src/backend/pyproject.toml']
+        )
+    ]
+)
+clean_old_images('localhost:5001/meet-backend')
+
+docker_build(
+    'localhost:5001/meet-frontend-dinum:latest',
+    context='..',
+    dockerfile='../docker/dinum-frontend/Dockerfile',
+    only=['./src/frontend', './src/addons', './docker', './.dockerignore'],
+    target = 'frontend-production',
+    live_update=[
+        sync('../src/frontend', '/home/frontend'),
+        sync('../src/addons', '/home/addons'),
+    ]
+)
+clean_old_images('localhost:5001/meet-frontend-dinum')
+
+docker_build(
+    'localhost:5001/meet-frontend-generic:latest',
+    context='..',
+    dockerfile='../src/frontend/Dockerfile',
+    only=['./src/frontend', './docker', './.dockerignore'],
+    target = 'meet-dev',
+    live_update=[
+        sync('../src/frontend', '/home/frontend'),
+    ]
+)
+clean_old_images('localhost:5001/meet-frontend-generic')
+
+docker_build(
+    'localhost:5001/meet-summary:latest',
+    context='../src/summary',
+    dockerfile='../src/summary/Dockerfile',
+    only=['.'],
+    target = 'production',
+    live_update=[
+        sync('../src/summary', '/app'),
+    ]
+)
+clean_old_images('localhost:5001/meet-summary')
+
+docker_build(
+    'localhost:5001/meet-agents:latest',
+    context='../src/agents',
+    dockerfile='../src/agents/Dockerfile',
+    only=['.'],
+    target = 'production',
+    live_update=[
+        sync('../src/agents', '/app'),
+    ]
+)
+clean_old_images('localhost:5001/meet-agents')
+
+# Copy the mkcert root CA certificate to our Docker build context
+# This is necessary because we need to inject the certificate into our LiveKit container
+local_resource(
+    'copy-root-ca',
+    cmd='cp -f "$(mkcert -CAROOT)/rootCA.pem" ../docker/livekit/rootCA.pem',
+    deps=[],  # No dependencies needed
+)
+# Build a custom LiveKit Docker image that includes our root CA certificate
+# This allows LiveKit to trust our local development certificates
+docker_build(
+    'localhost:5001/meet-livekit:latest',
+    context='../docker/livekit',
+    dockerfile='./../docker/livekit/Dockerfile',
+    only=['.'],
+)
+clean_old_images('localhost:5001/meet-livekit')
+
+load('ext://secret', 'secret_yaml_generic')
+k8s_yaml(secret_yaml_generic(
+    name="secret-dev",
+    from_env_file="../env.d/development/kube-secret"
+))
+
+k8s_yaml(local('cd ../src/helm && helmfile -n meet -e ${DEV_ENV:-dev-keycloak} template .'))
+
+k8s_resource('minio-bucket', resource_deps=['minio'])
+k8s_resource('meet-backend', resource_deps=['postgresql', 'minio', 'redis', 'livekit-livekit-server'])
+k8s_resource('meet-celery-backend', resource_deps=['redis'])
+k8s_resource('meet-celery-summarize', resource_deps=['redis'])
+k8s_resource('meet-celery-summary-backend', resource_deps=['redis'])
+k8s_resource('meet-celery-transcribe-default', resource_deps=['redis'])
+k8s_resource('livekit-livekit-server', resource_deps=['redis'])
+k8s_resource('livekit-livekit-server-test-connection', resource_deps=['livekit-livekit-server'])
+k8s_resource('keycloak', resource_deps=['kc-postgresql'])
+# Trigger once on launch
+k8s_resource(
+    'meet-backend-createsuperuser',
+    resource_deps=['meet-backend-migrate'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+)
+k8s_resource(
+    'meet-backend-migrate',
+    resource_deps=['meet-backend'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+)
+
+migration = '''
+set -eu
+# get k8s pod name from tilt resource name
+POD_NAME="$(tilt get kubernetesdiscovery meet-backend -ojsonpath='{.status.pods[0].name}')"
+kubectl -n meet exec "$POD_NAME" -- python manage.py makemigrations
+'''
+cmd_button('Make migration',
+           argv=['sh', '-c', migration],
+           resource='meet-backend',
+           icon_name='developer_board',
+           text='Run makemigration',
+)
+
+pod_migrate = '''
+set -eu
+# get k8s pod name from tilt resource name
+POD_NAME="$(tilt get kubernetesdiscovery meet-backend -ojsonpath='{.status.pods[0].name}')"
+kubectl -n meet exec "$POD_NAME" -- python manage.py migrate --no-input
+'''
+cmd_button('Migrate db',
+           argv=['sh', '-c', pod_migrate],
+           resource='meet-backend',
+           icon_name='developer_board',
+           text='Run database migration',
+)

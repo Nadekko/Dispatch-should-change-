@@ -1,0 +1,99 @@
+"""Dictaphone core API endpoints"""
+
+from urllib.parse import urljoin
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.middleware.csrf import get_token
+from django.shortcuts import redirect, render
+
+from rest_framework import exceptions as drf_exceptions
+from rest_framework import views as drf_views
+from rest_framework.decorators import api_view
+from rest_framework.exceptions import NotAuthenticated
+from rest_framework.response import Response
+
+from core.configuration import get_profile_for_email
+
+
+def exception_handler(exc, context):
+    """Handle Django ValidationError as an accepted exception.
+
+    For the parameters, see ``exception_handler``
+    This code comes from twidi's gist:
+    https://gist.github.com/twidi/9d55486c36b6a51bdcb05ce3a763e79f
+    """
+    if isinstance(exc, ValidationError):
+        if hasattr(exc, "message_dict"):
+            detail = exc.message_dict
+        elif hasattr(exc, "message"):
+            detail = exc.message
+        elif hasattr(exc, "messages"):
+            detail = exc.messages
+        else:
+            detail = ""
+
+        exc = drf_exceptions.ValidationError(detail=detail)
+
+    return drf_views.exception_handler(exc, context)
+
+
+# pylint: disable=unused-argument
+@api_view(["GET"])
+def get_app_configuration(request):
+    """Returns the configuration dict as configured in settings."""
+    profile = get_profile_for_email(
+        request.user.email if request.user.is_authenticated else None
+    )
+    config = {
+        "LANGUAGE_CODE": settings.LANGUAGE_CODE,
+        "audio_recording": {
+            "max_count_by_user": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+                "max_count_by_user"
+            ],
+            "max_size": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+                "max_size"
+            ],
+            "allowed_extensions": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+                "allowed_extensions"
+            ],
+            "allowed_mimetypes": settings.FILE_UPLOAD_RESTRICTIONS["audio_recording"][
+                "allowed_mimetypes"
+            ],
+            "max_duration_seconds": settings.FILE_UPLOAD_RESTRICTIONS[
+                "audio_recording"
+            ]["max_duration_seconds"]
+            - 10,  # A bit of margin for error
+        },
+        "data_policy": {
+            "is_relative_to_user": request.user.is_authenticated,
+            "file_auto_hard_delete_after_days": profile.file_auto_hard_delete_after_days,
+            "original_file_data_delete_after_days": profile.original_file_data_delete_after_days,
+        },
+        "docs_integration_enabled": settings.DOCS_INTEGRATION_ENABLED,
+        "docs_integration_supports_synchroneous_calls": settings.DOCS_INTEGRATION_ENABLED,
+        "mobile_app": {
+            "ios_download_link": settings.MOBILE_APP_IOS_DOWNLOAD_LINK,
+            "android_download_link": settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK,
+            "ios_version": settings.MOBILE_APP_IOS_VERSION,
+            "ios_min_version": settings.MOBILE_APP_IOS_MIN_VERSION,
+            "android_version": settings.MOBILE_APP_ANDROID_VERSION,
+            "android_min_version": settings.MOBILE_APP_ANDROID_MIN_VERSION,
+        },
+    }
+    config.update(settings.FRONTEND_CONFIGURATION)
+    return Response(config)
+
+
+@api_view(["GET"])
+def get_mobile_app_download_page(request):
+    """Redirect to the mobile app download page based on user agent."""
+    user_agent = request.META.get("HTTP_USER_AGENT", "").lower()
+
+    if "iphone" in user_agent or "ipad" in user_agent or "ios" in user_agent:
+        return redirect(settings.MOBILE_APP_IOS_DOWNLOAD_LINK)
+
+    if "android" in user_agent:
+        return redirect(settings.MOBILE_APP_ANDROID_DOWNLOAD_LINK)
+
+    return redirect(urljoin(settings.LOGIN_REDIRECT_URL, "/download-mobile-app"))

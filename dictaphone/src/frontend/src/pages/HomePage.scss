@@ -1,0 +1,103 @@
+@use 'sass:map';
+@use '../styles/cunningham-tokens-sass' as *;
+
+$tablet: map.get($themes, 'default', 'globals', 'breakpoints', 'lg');
+$mobile: map.get($themes, 'default', 'globals', 'breakpoints', 'xs');
+
+.home-page {
+  overflow-y: scroll;
+  height: 100vh;
+
+  .home-page__app-logo {
+    height: 60px;
+    @media (min-width: $tablet) {
+      display: none;
+    }
+    @media (max-width: $mobile) {
+      height: 36px;
+    }
+  }
+
+  .home-page__hero {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--c--globals--spacings--lg);
+    padding-top: var(--c--globals--spacings--lg);
+
+    img {
+      height: 300px;
+
+      @media (max-width: 800px) {
+        display: none;
+      }
+    }
+
+    &__intro {
+      max-width: 650px;
+
+      h1 {
+        font-size: 44px;
+        line-height: 48px;
+        font-weight: 700;
+        margin: 0;
+
+        @media (max-width: $mobile) {
+          font-size: 34px;
+          line-height: 38px;
+
+          word-break: break-word;
+        }
+      }
+
+      p {
+        color: #555e74;
+        font-size: 20px;
+        line-height: 28px;
+
+        @media (max-width: $mobile) {
+          word-break: break-word;
+        }
+      }
+
+      &__buttons {
+        display: flex;
+        flex-direction: row;
+        gap: var(--c--globals--spacings--sm);
+
+        @media (max-width: $mobile) {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
+    }
+  }
+
+  &__examples {
+    width: 100%;
+    padding: var(--c--globals--spacings--4xl) var(--c--globals--spacings--lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--c--globals--spacings--lg);
+
+    &__images {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: var(--c--globals--spacings--lg);
+      @media (max-width: $mobile) {
+        gap: var(--c--globals--spacings--md);
+      }
+
+      img {
+        height: 730px;
+
+        @media (max-width: 1300px) {
+          height: 500px;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,116 @@
+import { proxy, subscribe } from 'valtio'
+import {
+  ProcessorConfig,
+  ProcessorType,
+} from '@/features/rooms/livekit/components/blur'
+import {
+  loadUserChoices,
+  type LocalUserChoices as LocalUserChoicesLK,
+  saveUserChoices,
+} from '@livekit/components-core'
+import { VideoQuality } from 'livekit-client'
+
+export const VIDEO_RESOLUTIONS = ['h1080', 'h720', 'h360', 'h180'] as const
+
+export type VideoResolution = (typeof VIDEO_RESOLUTIONS)[number]
+
+const isVideoResolution = (value: unknown): value is VideoResolution =>
+  VIDEO_RESOLUTIONS.includes(value as VideoResolution)
+
+export type LocalUserChoices = Omit<LocalUserChoicesLK, 'username'> & {
+  processorConfig?: ProcessorConfig
+  noiseReductionEnabled?: boolean
+  audioOutputDeviceId?: string
+  videoPublishResolution?: VideoResolution
+  videoSubscribeQuality?: VideoQuality
+}
+
+function getUserChoicesState(): LocalUserChoices {
+  const stored: LocalUserChoices = {
+    noiseReductionEnabled: false,
+    audioOutputDeviceId: 'default', // Use 'default' to match LiveKit's standard device selection behavior
+    videoPublishResolution: 'h720',
+    videoSubscribeQuality: VideoQuality.HIGH,
+    ...loadUserChoices(),
+  }
+  if (!isVideoResolution(stored.videoPublishResolution)) {
+    stored.videoPublishResolution = 'h720'
+  }
+  return stored
+}
+
+export const userChoicesStore = proxy<LocalUserChoices>(getUserChoicesState())
+subscribe(userChoicesStore, () => {
+  // TEMPORARY: cast needed because our store omits `username`, which we no
+  // longer persis in this store, while LiveKit's `saveUserChoices` still expects the full
+  // `LocalUserChoices` shape. `username` ends up `undefined` in the saved
+  // object, which `saveUserChoices` tolerates at runtime.
+  // We are migrating away from LiveKit's persistence logic to our own store
+  // handling for more control — this cast can be removed once that lands.
+  saveUserChoices(userChoicesStore as LocalUserChoicesLK, false)
+})
+
+// we run some logic on store loading to check if the processor config is still valid
+if (userChoicesStore.processorConfig?.type === ProcessorType.VIRTUAL) {
+  if (userChoicesStore.processorConfig.imagePath.startsWith('blob:')) {
+    // this happens when a not authenticated user had changed their background image
+    // we restore clear the processor config to avoid displaying a black screen.
+    userChoicesStore.processorConfig = undefined
+  } else if (userChoicesStore.processorConfig.fileId) {
+    // Checking if the image is still available / accessible
+    await fetch(userChoicesStore.processorConfig.imagePath, {
+      // We bypass the cache to ensure we have access
+      cache: 'reload',
+    })
+      .then((response) => {
+        // if we cannot fetch the image (likely a 401 from the backend because
+        // the user is not logged in anymore, etc.),
+        // we clear the processor config to avoid displaying a black screen.
+        // This can happen when the user logs out for instance, etc.
+        if (!response.ok) {
+          userChoicesStore.processorConfig = undefined
+        }
+      })
+      .catch(() => {
+        userChoicesStore.processorConfig = undefined
+      })
+  }
+}
+
+export const saveAudioInputEnabled = (isEnabled: boolean) => {
+  userChoicesStore.audioEnabled = isEnabled
+}
+
+export const saveVideoInputEnabled = (isEnabled: boolean) => {
+  userChoicesStore.videoEnabled = isEnabled
+}
+
+export const saveAudioInputDeviceId = (deviceId: string) => {
+  userChoicesStore.audioDeviceId = deviceId
+}
+
+export const saveAudioOutputDeviceId = (deviceId: string) => {
+  userChoicesStore.audioOutputDeviceId = deviceId
+}
+
+export const saveVideoInputDeviceId = (deviceId: string) => {
+  userChoicesStore.videoDeviceId = deviceId
+}
+
+export const saveVideoPublishResolution = (resolution: VideoResolution) => {
+  userChoicesStore.videoPublishResolution = resolution
+}
+
+export const saveVideoSubscribeQuality = (quality: VideoQuality) => {
+  userChoicesStore.videoSubscribeQuality = quality
+}
+
+export const saveNoiseReductionEnabled = (enabled: boolean) => {
+  userChoicesStore.noiseReductionEnabled = enabled
+}
+
+export const saveProcessorConfig = (
+  processorConfig: ProcessorConfig | undefined
+) => {
+  userChoicesStore.processorConfig = processorConfig
+}

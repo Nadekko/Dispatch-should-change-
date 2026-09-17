@@ -1,0 +1,705 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-02 22:52+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: core/admin.py:67
+msgid "Personal info"
+msgstr "Persoonlijke informatie"
+
+#: core/admin.py:80
+msgid "Permissions"
+msgstr "Rechten"
+
+#: core/admin.py:92
+msgid "Important dates"
+msgstr "Belangrijke datums"
+
+#: core/admin.py:206
+msgid "Content"
+msgstr ""
+
+#: core/admin.py:217
+#, fuzzy
+#| msgid "Delete rooms"
+msgid "Deletion"
+msgstr "Ruimtes verwijderen"
+
+#: core/admin.py:226
+msgid "Derived info"
+msgstr ""
+
+#: core/admin.py:237
+msgid "Timestamps"
+msgstr ""
+
+#: core/admin.py:240
+msgid "File preview"
+msgstr ""
+
+#: core/admin.py:300 core/admin.py:450
+msgid "No owner"
+msgstr "Geen eigenaar"
+
+#: core/admin.py:303 core/admin.py:453
+msgid "Multiple owners"
+msgstr "Meerdere eigenaren"
+
+#: core/admin.py:316
+msgid "Resend notification to external service"
+msgstr "Melding opnieuw verzenden naar externe dienst"
+
+#: core/admin.py:339
+#, python-format
+msgid "Failed to notify for recording %(id)s"
+msgstr "Melding voor opname %(id)s mislukt"
+
+#: core/admin.py:347
+#, python-format
+msgid "Failed to notify for recording %(id)s: %(error)s"
+msgstr "Melding voor opname %(id)s mislukt: %(error)s"
+
+#: core/admin.py:355
+#, python-format
+msgid "Successfully sent notifications for %(count)s recording(s)."
+msgstr "Meldingen succesvol verzonden voor %(count)s opname(n)."
+
+#: core/admin.py:363
+#, python-format
+msgid "Skipped %(count)s expired recording(s)."
+msgstr "%(count)s verlopen opname(n) overgeslagen."
+
+#: core/admin.py:368
+msgid "Mark selected recordings as 'Failed to Stop'"
+msgstr "Geselecteerde opnames markeren als 'Mislukt bij stoppen'"
+
+#: core/admin.py:386
+#, python-format
+msgid "%(count)s recording(s) successfully marked as 'Failed to Stop'."
+msgstr "%(count)s opname(s) succesvol gemarkeerd als 'Mislukt bij stoppen'."
+
+#: core/admin.py:394
+#, fuzzy, python-format
+#| msgid "Skipped %(count)s expired recording(s)."
+msgid "Skipped %(count)s recording(s) with an ineligible status."
+msgstr "%(count)s opname(s) met een niet-toegestane status overgeslagen."
+
+#: core/admin.py:517
+msgid "No scopes"
+msgstr "Geen scopes"
+
+#: core/admin.py:519
+msgid "Scopes"
+msgstr "Scopes"
+
+#: core/api/filters.py:25
+msgid "Creator is me"
+msgstr "Maker ben ik"
+
+#: core/api/serializers.py:108
+msgid "You must be administrator or owner of a room to add accesses to it."
+msgstr ""
+"Je moet beheerder of eigenaar van een ruimte zijn om toegang toe te voegen."
+
+#: core/api/serializers.py:560
+msgid "This file extension is not allowed."
+msgstr "Deze bestandsextensie is niet toegestaan."
+
+#: core/api/viewsets.py:1268
+msgid "You have reached the maximum number of files for this type."
+msgstr "Het maximale aantal bestanden voor dit type is bereikt."
+
+#: core/models.py:38
+msgid "Member"
+msgstr "Lid"
+
+#: core/models.py:39
+msgid "Administrator"
+msgstr "Beheerder"
+
+#: core/models.py:40
+msgid "Owner"
+msgstr "Eigenaar"
+
+#: core/models.py:56
+msgid "Initiated"
+msgstr "Gestart"
+
+#: core/models.py:57
+msgid "Active"
+msgstr "Actief"
+
+#: core/models.py:58
+msgid "Stopped"
+msgstr "Gestopt"
+
+#: core/models.py:59
+msgid "Saved"
+msgstr "Opgeslagen"
+
+#: core/models.py:60
+msgid "Aborted"
+msgstr "Afgebroken"
+
+#: core/models.py:61
+msgid "Failed to Start"
+msgstr "Starten mislukt"
+
+#: core/models.py:62
+msgid "Failed to Stop"
+msgstr "Stoppen mislukt"
+
+#: core/models.py:63
+msgid "Notification succeeded"
+msgstr "Notificatie geslaagd"
+
+#: core/models.py:66
+msgid "External process successful"
+msgstr "Externe procedure succesvol"
+
+#: core/models.py:68
+msgid "External process failed"
+msgstr "Het externe proces is mislukt."
+
+#: core/models.py:97
+msgid "SCREEN_RECORDING"
+msgstr "SCHERM_OPNAME"
+
+#: core/models.py:98
+msgid "TRANSCRIPT"
+msgstr "TRANSCRIPT"
+
+#: core/models.py:104
+msgid "Public Access"
+msgstr "Openbare toegang"
+
+#: core/models.py:105
+msgid "Trusted Access"
+msgstr "Vertrouwde toegang"
+
+#: core/models.py:106
+msgid "Restricted Access"
+msgstr "Beperkte toegang"
+
+#: core/models.py:118
+msgid "id"
+msgstr "id"
+
+#: core/models.py:119
+msgid "primary key for the record as UUID"
+msgstr "primaire sleutel voor het record als UUID"
+
+#: core/models.py:125
+msgid "created on"
+msgstr "aangemaakt op"
+
+#: core/models.py:126
+msgid "date and time at which a record was created"
+msgstr "datum en tijd waarop een record werd aangemaakt"
+
+#: core/models.py:131
+msgid "updated on"
+msgstr "bijgewerkt op"
+
+#: core/models.py:132
+msgid "date and time at which a record was last updated"
+msgstr "datum en tijd waarop een record voor het laatst werd bijgewerkt"
+
+#: core/models.py:150
+msgid "sub"
+msgstr "sub"
+
+#: core/models.py:152
+msgid ""
+"Optional for pending users; required upon account activation. 255 characters "
+"or fewer. Printable ASCII characters only."
+msgstr ""
+"Optioneel voor gebruikers in afwachting; verplicht bij het activeren van het "
+"account. Maximaal 255 tekens. Alleen afdrukbare ASCII-tekens."
+
+#: core/validators.py:22
+msgid "Enter a valid sub. This value should be printable ASCII only."
+msgstr "Voer een geldige sub in. Deze waarde mag alleen afdrukbare ASCII-tekens bevatten."
+
+#: core/models.py:161
+msgid "identity email address"
+msgstr "identiteit e-mailadres"
+
+#: core/models.py:166
+msgid "admin email address"
+msgstr "beheerder e-mailadres"
+
+#: core/models.py:168
+msgid "full name"
+msgstr "volledige naam"
+
+#: core/models.py:170
+msgid "short name"
+msgstr "korte naam"
+
+#: core/models.py:176
+msgid "language"
+msgstr "taal"
+
+#: core/models.py:177
+msgid "The language in which the user wants to see the interface."
+msgstr "De taal waarin de gebruiker de interface wil zien."
+
+#: core/models.py:183
+msgid "The timezone in which the user wants to see times."
+msgstr "De tijdzone waarin de gebruiker tijden wil zien."
+
+#: core/models.py:190
+msgid "default room access level"
+msgstr ""
+
+#: core/models.py:192
+msgid ""
+"Access level applied by default to new rooms created by this user. When "
+"empty, the instance default is used."
+msgstr ""
+
+#: core/models.py:199
+#, fuzzy
+#| msgid "Visio room configuration"
+msgid "default room configuration"
+msgstr "Visio-ruimteconfiguratie"
+
+#: core/models.py:201
+msgid "Configurations applied by default to new rooms created by this user."
+msgstr ""
+
+#: core/models.py:205
+msgid "device"
+msgstr "apparaat"
+
+#: core/models.py:207
+msgid "Whether the user is a device or a real user."
+msgstr "Of de gebruiker een apparaat is of een echte gebruiker."
+
+#: core/models.py:210
+msgid "staff status"
+msgstr "personeelsstatus"
+
+#: core/models.py:212
+msgid "Whether the user can log into this admin site."
+msgstr "Of de gebruiker kan inloggen op deze beheersite."
+
+#: core/models.py:215
+msgid "active"
+msgstr "actief"
+
+#: core/models.py:218
+msgid ""
+"Whether this user should be treated as active. Unselect this instead of "
+"deleting accounts."
+msgstr ""
+"Of deze gebruiker als actief moet worden behandeld. Deselecteer dit in "
+"plaats van accounts te verwijderen."
+
+#: core/models.py:231
+msgid "user"
+msgstr "gebruiker"
+
+#: core/models.py:232
+msgid "users"
+msgstr "gebruikers"
+
+#: core/models.py:298
+msgid "Resource"
+msgstr "Bron"
+
+#: core/models.py:299
+msgid "Resources"
+msgstr "Bronnen"
+
+#: core/models.py:357
+msgid "Resource access"
+msgstr "Brontoegang"
+
+#: core/models.py:358
+msgid "Resource accesses"
+msgstr "Brontoegangsrechten"
+
+#: core/models.py:364
+msgid "Resource access with this User and Resource already exists."
+msgstr "Brontoegang met deze gebruiker en bron bestaat al."
+
+#: core/models.py:421
+msgid "Visio room configuration"
+msgstr "Visio-ruimteconfiguratie"
+
+#: core/models.py:422
+msgid "Values for Visio parameters to configure the room."
+msgstr "Waarden voor Visio-parameters om de ruimte te configureren."
+
+#: core/models.py:429
+msgid "Room PIN code"
+msgstr "Pincode van de kamer"
+
+#: core/models.py:430
+msgid "Unique n-digit code that identifies this room in telephony mode."
+msgstr ""
+"Unieke n-cijferige code die deze kamer identificeert in telefonie-modus."
+
+#: core/models.py:436 core/models.py:597
+msgid "Room"
+msgstr "Ruimte"
+
+#: core/models.py:437
+msgid "Rooms"
+msgstr "Ruimtes"
+
+#: core/models.py:608
+msgid "Worker ID"
+msgstr "Worker ID"
+
+#: core/models.py:610
+msgid ""
+"Enter an identifier for the worker recording.This ID is retained even when "
+"the worker stops, allowing for easy tracking."
+msgstr ""
+"Voer een identificatie in voor de worker-opname. Deze ID blijft behouden, "
+"zelfs wanneer de worker stopt, waardoor eenvoudige tracking mogelijk is."
+
+#: core/models.py:618
+msgid "Recording mode"
+msgstr "Opnamemodus"
+
+#: core/models.py:619
+msgid "Defines the mode of recording being called."
+msgstr "Definieert de modus van opname die wordt aangeroepen."
+
+#: core/models.py:624 core/models.py:625
+msgid "Recording options"
+msgstr "Opnameopties"
+
+#: core/models.py:632
+msgid "External Process ID"
+msgstr "Externe proces-ID"
+
+#: core/models.py:633
+msgid "ID of the external process associated with the recording."
+msgstr "ID van het externe proces dat aan de opname is gekoppeld."
+
+#: core/models.py:639
+msgid "Recording"
+msgstr "Opname"
+
+#: core/models.py:640
+msgid "Recordings"
+msgstr "Opnames"
+
+#: core/models.py:750
+msgid "Recording/user relation"
+msgstr "Opname/gebruiker-relatie"
+
+#: core/models.py:751
+msgid "Recording/user relations"
+msgstr "Opname/gebruiker-relaties"
+
+#: core/models.py:757
+msgid "This user is already in this recording."
+msgstr "Deze gebruiker is al in deze opname."
+
+#: core/models.py:763
+msgid "This team is already in this recording."
+msgstr "Dit team is al in deze opname."
+
+#: core/models.py:769
+msgid "Either user or team must be set, not both."
+msgstr "Ofwel gebruiker of team moet worden ingesteld, niet beide."
+
+#: core/models.py:786
+msgid "Create rooms"
+msgstr "Ruimtes aanmaken"
+
+#: core/models.py:787
+msgid "List rooms"
+msgstr "Ruimtes weergeven"
+
+#: core/models.py:788
+msgid "Retrieve room details"
+msgstr "Details van een ruimte ophalen"
+
+#: core/models.py:789
+msgid "Update rooms"
+msgstr "Ruimtes bijwerken"
+
+#: core/models.py:790
+msgid "Delete rooms"
+msgstr "Ruimtes verwijderen"
+
+#: core/models.py:803
+msgid "Application name"
+msgstr "Naam van de applicatie"
+
+#: core/models.py:804
+msgid "Descriptive name for this application."
+msgstr "Beschrijvende naam voor deze applicatie."
+
+#: core/models.py:814
+msgid "Hashed on Save. Copy it now if this is a new secret."
+msgstr ""
+"Wordt gehasht bij het opslaan. Kopieer het nu als dit een nieuw geheim is."
+
+#: core/models.py:825
+msgid "Application"
+msgstr "Applicatie"
+
+#: core/models.py:826
+msgid "Applications"
+msgstr "Applicaties"
+
+#: core/models.py:849
+msgid "Enter a valid domain"
+msgstr "Voer een geldig domein in"
+
+#: core/models.py:852
+msgid "Domain"
+msgstr "Domein"
+
+#: core/models.py:853
+msgid "Email domain this application can act on behalf of."
+msgstr "E-maildomein namens welke deze applicatie kan handelen."
+
+#: core/models.py:865
+msgid "Application domain"
+msgstr "Applicatiedomein"
+
+#: core/models.py:866
+msgid "Application domains"
+msgstr "Applicatiedomeinen"
+
+#: core/models.py:884
+msgid "Pending"
+msgstr "In afwachting"
+
+#: core/models.py:885
+msgid "Analyzing"
+msgstr ""
+
+#: core/models.py:892
+msgid "Ready"
+msgstr "Klaar"
+
+#: core/models.py:898
+msgid "Background image"
+msgstr "Achtergrondafbeelding"
+
+#: core/models.py:910
+msgid "title"
+msgstr "Titel"
+
+#: core/models.py:934
+msgid "Malware detection info when the analysis status is unsafe."
+msgstr "Informatie over malwaredetectie wanneer de analysestatus onveilig is."
+
+#: core/models.py:939
+msgid "File"
+msgstr "Bestand"
+
+#: core/models.py:940
+msgid "Files"
+msgstr "Bestanden"
+
+#: core/models.py:1060
+msgid "This file is already hard deleted."
+msgstr "Dit bestand is al definitief verwijderd."
+
+#: core/models.py:1070
+#, fuzzy
+#| msgid "To hard delete a file, it must first be soft deleted."
+msgid "To hard delete a file, it must first be soft deleted."
+msgstr ""
+"Om een bestand definitief te verwijderen, moet het eerst zacht verwijderd "
+"zijn."
+
+#: core/recording/event/notification.py:124
+msgid "Your recording is ready"
+msgstr "Je opname is klaar"
+
+#: core/recording/event/notification.py:195
+msgid "Transcription"
+msgstr "Transcriptie"
+
+#: core/recording/event/notification.py:206
+#, python-brace-format
+msgid "Meeting \"{room}\" on {room_recording_date} at {room_recording_time}"
+msgstr ""
+"Vergadering \"{room}\" op {room_recording_date} om {room_recording_time}"
+
+#: core/services/invitation.py:44
+#, python-brace-format
+msgid "Video call in progress: {sender.email} is waiting for you to connect"
+msgstr "Video-oproep bezig: {sender.email} wacht op je verbinding"
+
+#: core/templates/mail/html/invitation.html:151
+#: core/templates/mail/html/screen_recording.html:151
+#: core/templates/mail/text/invitation.txt:4
+#: core/templates/mail/text/screen_recording.txt:4
+msgid "Logo email"
+msgstr "Logo e-mail"
+
+#: core/templates/mail/html/invitation.html:181
+#: core/templates/mail/text/invitation.txt:6
+msgid "invites you to join an ongoing video call"
+msgstr "nodigt je uit om deel te nemen aan een lopende video-oproep"
+
+#: core/templates/mail/html/invitation.html:192
+#: core/templates/mail/text/invitation.txt:8
+msgid "JOIN THE CALL"
+msgstr "NEEM DEEL AAN DE OPROEP"
+
+#: core/templates/mail/html/invitation.html:219
+#: core/templates/mail/text/invitation.txt:14
+msgid ""
+"If you can't click the button, copy and paste the URL into your browser to "
+"join the call."
+msgstr ""
+"Als je niet op de knop kunt klikken, kopieer en plak dan de URL in je "
+"browser om deel te nemen aan de oproep."
+
+#: core/templates/mail/html/invitation.html:227
+#: core/templates/mail/text/invitation.txt:16
+msgid "Tips for a better experience:"
+msgstr "Tips voor een betere ervaring:"
+
+#: core/templates/mail/html/invitation.html:229
+#: core/templates/mail/text/invitation.txt:18
+msgid "Use Chrome or Firefox for better call quality"
+msgstr "Gebruik Chrome of Firefox voor betere gesprekskwaliteit"
+
+#: core/templates/mail/html/invitation.html:230
+#: core/templates/mail/text/invitation.txt:19
+msgid "Test your microphone and camera before joining"
+msgstr "Test je microfoon en camera voordat je deelneemt"
+
+#: core/templates/mail/html/invitation.html:231
+#: core/templates/mail/text/invitation.txt:20
+msgid "Make sure you have a stable internet connection"
+msgstr "Zorg ervoor dat je een stabiele internetverbinding hebt"
+
+#: core/templates/mail/html/invitation.html:240
+#: core/templates/mail/html/screen_recording.html:237
+#: core/templates/mail/text/invitation.txt:22
+#: core/templates/mail/text/screen_recording.txt:24
+#, python-format
+msgid " Thank you for using %(brandname)s. "
+msgstr " Bedankt voor het gebruik van %(brandname)s. "
+
+#: core/templates/mail/html/invitation.html:271
+#, python-format
+msgid ""
+"This mail has been sent to %(email)s by <a href=\"%(href)s\">%(name)s</a>"
+msgstr ""
+
+#: core/templates/mail/html/screen_recording.html:180
+#: core/templates/mail/text/screen_recording.txt:7
+msgid "Your recording is ready!"
+msgstr "Je opname is klaar!"
+
+#: core/templates/mail/html/screen_recording.html:187
+#: core/templates/mail/text/screen_recording.txt:9
+#, python-format
+msgid ""
+" Your recording of \"%(room_name)s\" on %(recording_date)s at "
+"%(recording_time)s is now ready to download. "
+msgstr ""
+" Je opname van \"%(room_name)s\" op %(recording_date)s om %(recording_time)s "
+"is nu klaar om te downloaden. "
+
+#: core/templates/mail/html/screen_recording.html:187
+#: core/templates/mail/text/screen_recording.txt:9
+#, python-format
+msgid " The recording will expire in %(days)s days. "
+msgstr " De opname verloopt over %(days)s dagen. "
+
+#: core/templates/mail/html/screen_recording.html:192
+#: core/templates/mail/text/screen_recording.txt:10
+msgid ""
+" Sharing the recording via link is not yet available. Only organizers can "
+"download it. "
+msgstr ""
+"Het delen van de opname via een link is nog niet beschikbaar. Alleen "
+"organisatoren kunnen deze downloaden."
+
+#: core/templates/mail/html/screen_recording.html:198
+#: core/templates/mail/text/screen_recording.txt:12
+msgid "To keep this recording permanently:"
+msgstr "Om deze opname permanent te bewaren:"
+
+#: core/templates/mail/html/screen_recording.html:200
+#, python-format
+msgid "Click the \"<a href=\"%(link)s\">Open</a>\" link below "
+msgstr "Klik op de \"<a href=\"%(link)s\">Openen</a>\"-link hieronder "
+
+#: core/templates/mail/html/screen_recording.html:201
+#: core/templates/mail/text/screen_recording.txt:15
+msgid "Use the \"Download\" button in the interface "
+msgstr "Gebruik de \"Download\"-knop in de interface "
+
+#: core/templates/mail/html/screen_recording.html:202
+#: core/templates/mail/text/screen_recording.txt:16
+msgid "Save the file to your preferred location"
+msgstr "Sla het bestand op naar je gewenste locatie"
+
+#: core/templates/mail/html/screen_recording.html:213
+#: core/templates/mail/text/screen_recording.txt:18
+msgid "Open"
+msgstr "Openen"
+
+#: core/templates/mail/html/screen_recording.html:222
+#: core/templates/mail/text/screen_recording.txt:20
+#, python-format
+msgid ""
+" If you have any questions or need assistance, please contact our support "
+"team at %(support_email)s. "
+msgstr ""
+" Als je vragen hebt of hulp nodig hebt, neem dan contact op met ons support "
+"team via %(support_email)s. "
+
+#: core/templates/mail/text/invitation.txt:24
+#, python-format
+msgid "This mail has been sent to %(email)s by %(name)s [%(href)s]"
+msgstr ""
+
+#: core/templates/mail/text/screen_recording.txt:14
+#, fuzzy, python-format
+#| msgid "Click the \"<a href=\"%(link)s\">Open</a>\" link below "
+msgid "Click the \"Open [%(link)s]\" link below "
+msgstr "Klik op de \"<a href=\"%(link)s\">Openen</a>\"-link hieronder "
+
+#: meet/settings.py:238
+msgid "English"
+msgstr "Engels"
+
+#: meet/settings.py:239
+msgid "French"
+msgstr "Frans"
+
+#: meet/settings.py:240
+msgid "Dutch"
+msgstr "Nederlands"
+
+#: meet/settings.py:241
+msgid "German"
+msgstr "Duits"
+
+#: meet/settings.py:242
+msgid "Spanish"
+msgstr "Spaans"

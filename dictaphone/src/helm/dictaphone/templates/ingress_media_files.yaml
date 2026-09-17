@@ -1,0 +1,103 @@
+{{- $fullName := include "dictaphone.fullname" . -}}
+{{- $root := . -}}
+{{- range .Values.ingressMediaFiles }}
+{{- if .enabled -}}
+{{- $ingress := . -}}
+{{- $ingressName := required "a name is required for every media files ingress" .name -}}
+{{- $serviceName := default $ingressName .serviceName -}}
+{{- $ingressHost := default "dictaphone.example.com" .host -}}
+{{- $ingressPath := default "/media/(.*)" .path -}}
+{{- $ingressHosts := default (list) .hosts -}}
+{{- $ingressTls := default (dict "enabled" true "secretName" nil "additional" (list)) .tls -}}
+{{- $ingressAnnotations := default (dict) .annotations -}}
+{{- $servicePort := 0 -}}
+{{- range $root.Values.serviceMediaFiles }}
+  {{- if eq .name $serviceName }}
+    {{- $servicePort = .port -}}
+  {{- end }}
+{{- end }}
+{{- $servicePort = required (printf "no serviceMediaFiles entry named %q exists" $serviceName) $servicePort -}}
+{{- if and $ingress.className (not (semverCompare ">=1.18-0" $root.Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey $ingressAnnotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set $ingressAnnotations "kubernetes.io/ingress.class" $ingress.className }}
+  {{- end }}
+{{- end }}
+{{- $ingressFullName := include "dictaphone.mediaFiles.fullname" (dict "fullname" $fullName "name" $ingressName) -}}
+{{- if semverCompare ">=1.19-0" $root.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1
+{{- else if semverCompare ">=1.14-0" $root.Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: {{ $ingressFullName }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "dictaphone.labels" $root | nindent 4 }}
+  {{- with $ingressAnnotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and $ingress.className (semverCompare ">=1.18-0" $root.Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ $ingress.className }}
+  {{- end }}
+  {{- if $ingressTls.enabled }}
+  tls:
+    {{- if $ingressHost }}
+    - secretName: {{ $ingressTls.secretName | default (printf "%s-tls" (ternary $fullName $ingressFullName (eq $ingressName "default"))) | quote }}
+      hosts:
+        - {{ $ingressHost | quote }}
+    {{- end }}
+    {{- range $ingressTls.additional }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if $ingressHost }}
+    - host: {{ $ingressHost | quote }}
+      http:
+        paths:
+          - path: {{ $ingressPath | quote }}
+            {{- if semverCompare ">=1.18-0" $root.Capabilities.KubeVersion.GitVersion }}
+            pathType: ImplementationSpecific
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $root.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ include "dictaphone.mediaFiles.fullname" (dict "fullname" $fullName "name" $serviceName) }}
+                port:
+                  number: {{ $servicePort }}
+              {{- else }}
+              serviceName: {{ include "dictaphone.mediaFiles.fullname" (dict "fullname" $fullName "name" $serviceName) }}
+              servicePort: {{ $servicePort }}
+            {{- end }}
+    {{- end }}
+    {{- range $ingressHosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: {{ $ingressPath | quote }}
+            {{- if semverCompare ">=1.18-0" $root.Capabilities.KubeVersion.GitVersion }}
+            pathType: ImplementationSpecific
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $root.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ include "dictaphone.mediaFiles.fullname" (dict "fullname" $fullName "name" $serviceName) }}
+                port:
+                  number: {{ $servicePort }}
+              {{- else }}
+              serviceName: {{ include "dictaphone.mediaFiles.fullname" (dict "fullname" $fullName "name" $serviceName) }}
+              servicePort: {{ $servicePort }}
+            {{- end }}
+    {{- end }}
+{{ end }}
+---
+{{ end }}

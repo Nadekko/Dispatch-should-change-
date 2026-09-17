@@ -1,0 +1,28 @@
+{
+  "error": {
+    "title": "Enregistrement indisponible",
+    "body": "L’enregistrement est introuvable. Seul l’organisateur de la réunion peut y accéder. N’hésitez pas à le contacter si besoin."
+  },
+  "expired": {
+    "title": "Enregistrement expiré",
+    "body": "Cet enregistrement a été supprimé le {{date}}."
+  },
+  "authentication": {
+    "title": "Authentification requise",
+    "body": "Veuillez vous connecter pour accéder à cet enregistrement."
+  },
+  "unsaved": {
+    "title": "Téléchargement indisponible",
+    "body": "Cet enregistrement n'est pas encore prêt à être téléchargé. Veuillez réessayer plus tard."
+  },
+  "success": {
+    "title": "Votre enregistrement est prêt !",
+    "body": "Enregistrement de la réunion {{room}} du {{created_at}}.",
+    "expiration": "Attention cet enregistrement expirera au bout de {{expiration_days}} jour(s).",
+    "button": "Télécharger",
+    "warning": {
+      "title": "Partage via lien désactivé",
+      "body": "Le partage de l'enregistrement via lien n'est pas encore disponible. Seuls les organisateurs peuvent le télécharger."
+    }
+  }
+}

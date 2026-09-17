@@ -1,0 +1,24 @@
+{
+  "actions": {
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "back": "Retour",
+    "copy": "Copier",
+    "copyText": "Copier le texte"
+  },
+  "utils": {
+    "formatDate": "{{value, formatDate}}",
+    "formatDateTime": "{{value, formatDateTime}}",
+    "formatDateTimeStatic": "{{value, formatDateTimeStatic}}",
+    "duration": "{{duration, formatDuration}}",
+    "durationLong": "{{duration, formatDurationLong}}"
+  },
+  "dates": {
+    "tomorrow": "Demain",
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "todayAt": "Aujourd'hui à",
+    "yesterdayAt": "Hier à",
+    "at": "à"
+  }
+}

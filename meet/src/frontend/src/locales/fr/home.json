@@ -1,0 +1,63 @@
+{
+  "createMeeting": "Créer une réunion",
+  "heading": "Visioconférences simples et sécurisées",
+  "intro": "Communiquez et travaillez en toute simplicité, sans compromis sur votre souveraineté",
+  "joinInputError": "Saisissez un lien ou un code de réunion. Exemples :",
+  "joinInputExample": "Un code de réunion ressemble à ceci : abc-defg-hij",
+  "joinInputLabel": "Lien complet ou code de la réunion",
+  "joinInputSubmit": "Rejoindre la réunion",
+  "joinMeeting": "Rejoindre une réunion",
+  "joinMeetingTipContent": "Vous pouvez rejoindre une réunion en copiant directement son lien complet dans la barre d'adresse du navigateur.",
+  "joinMeetingTipHeading": "Astuce",
+  "loginToCreateMeeting": "Connectez-vous pour créer une réunion",
+  "moreLinkLabel": "En savoir plus sur {{appTitle}} - nouvelle fenêtre",
+  "moreLink": "En savoir plus",
+  "moreAbout": "sur {{appTitle}}",
+  "connectionTestLink": "Tester votre configuration",
+  "createMenu": {
+    "laterOption": "Créer une réunion pour une date ultérieure",
+    "instantOption": "Démarrer une réunion instantanée"
+  },
+  "laterMeetingDialog": {
+    "heading": "Vos informations de connexion",
+    "description": "Partagez ces informations avec les invités. Ils pourront rejoindre la réunion sans avoir besoin de se connecter. Cette réunion est permanente et peut être réutilisée.",
+    "permissions": "Les personnes disposant de ce lien n'ont pas besoin de votre autorisation pour rejoindre cette réunion.",
+    "copy": "Copier les informations",
+    "copied": "Copiées dans le presse-papiers",
+    "copyUrl": "Copier le lien de la réunion",
+    "phone": {
+      "call": "Appelez le :",
+      "pinCode": "Code :"
+    }
+  },
+  "introSlider": {
+    "carouselLabel": "Diaporama de présentation",
+    "previous": {
+      "label": "Diapositive précédente",
+      "labelWithPosition": "Diapositive précédente ({{current}} sur {{total}})",
+      "tooltip": "Diapositive précédente"
+    },
+    "next": {
+      "label": "Diapositive suivante",
+      "labelWithPosition": "Diapositive suivante ({{current}} sur {{total}})",
+      "tooltip": "Diapositive suivante"
+    },
+    "slidePosition": "Diapositive {{current}} sur {{total}}",
+    "beta": {
+      "text": "Essayer la beta",
+      "tooltip": "Accéder au formulaire"
+    },
+    "slide1": {
+      "title": "Passez à la simplicité. Essayez-nous dès maintenant !",
+      "body": "Découvrez une solution intuitive et accessible, conçue pour tous les agents publics et leurs partenaires, et bien plus encore."
+    },
+    "slide2": {
+      "title": "Organisez des appels de groupe sans limite",
+      "body": "Réunions sans limite de temps, avec une communication fluide et de haute qualité, quel que soit le nombre."
+    },
+    "slide3": {
+      "title": "Transformez vos réunions avec l'IA",
+      "body": "Obtenez des transcriptions précises et actionnables, pour booster votre productivité. Fonctionnalité en beta, essayez-la maintenant !"
+    }
+  }
+}

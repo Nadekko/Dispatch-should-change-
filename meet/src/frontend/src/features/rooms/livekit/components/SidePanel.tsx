@@ -1,0 +1,243 @@
+import { closeSidePanel, layoutStore } from '@/stores/layout'
+import { css } from '@/styled-system/css'
+import { Heading } from 'react-aria-components'
+import { text } from '@/primitives/Text'
+import { Button, Div } from '@/primitives'
+import { RiArrowLeftLine, RiCloseLine } from '@remixicon/react'
+import { useTranslation } from 'react-i18next'
+import { ParticipantsList } from '@/features/participants/components/ParticipantsList'
+import { PanelId, useSidePanel } from '../hooks/useSidePanel'
+import React, { ReactNode, useCallback, useRef } from 'react'
+import { Chat } from '@/features/chat/components/Chat'
+import { Effects } from './effects/Effects'
+import { Admin } from './Admin'
+import { Tools } from './Tools'
+import { Info } from './Info'
+import { HStack } from '@/styled-system/jsx'
+import { useReactionsToolbar } from '@/features/reactions/hooks/useReactionsToolbar'
+import { useRestoreFocus } from '@/hooks/useRestoreFocus'
+import { useEscapeToClose } from '@/hooks/useEscapeToClose'
+import { srOnly } from '@/styles/a11y'
+
+type StyledSidePanelProps = {
+  title: string
+  ariaLabel: string
+  children: ReactNode
+  onClose: () => void
+  isClosed: boolean
+  closeButtonTooltip: string
+  escapeHint: string
+  isSubmenu: boolean
+  onBack: () => void
+  backButtonLabel: string
+  isReactionToolbarOpen?: boolean
+}
+
+const StyledSidePanel = React.forwardRef<HTMLElement, StyledSidePanelProps>(
+  (
+    {
+      title,
+      ariaLabel,
+      children,
+      onClose,
+      isClosed,
+      isReactionToolbarOpen,
+      closeButtonTooltip,
+      escapeHint,
+      isSubmenu = false,
+      onBack,
+      backButtonLabel,
+    },
+    ref
+  ) => (
+    <aside
+      ref={ref}
+      tabIndex={-1}
+      className={css({
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: 'box.border',
+        backgroundColor: 'box.bg',
+        color: 'box.text',
+        borderRadius: 8,
+        flex: 1,
+        position: 'absolute',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        margin: 'var(--sizes-room-side-panel-margin)',
+        marginLeft: 0,
+        marginBottom: 0,
+        padding: 0,
+        gap: 0,
+        right: 0,
+        top: 0,
+        width: 'var(--sizes-room-side-panel)',
+        transition: '.5s cubic-bezier(.4,0,.2,1) 5ms',
+        '&:focus': {
+          outline: 'none',
+        },
+      })}
+      style={{
+        transform: isClosed
+          ? 'translateX(calc(var(--sizes-room-side-panel) + var(--sizes-room-side-panel-margin)))'
+          : 'none',
+        bottom: isReactionToolbarOpen
+          ? 'calc( var(--sizes-room-control-bar) + var(--sizes-room-reaction-toolbar-height) + calc(var(--lk-grid-gap) / 2))'
+          : 'var(--sizes-room-control-bar)',
+      }}
+      aria-hidden={isClosed}
+      aria-label={ariaLabel}
+      aria-describedby="side-panel-escape-hint"
+    >
+      <span id="side-panel-escape-hint" className={srOnly}>
+        {escapeHint}
+      </span>
+      <HStack alignItems="center">
+        {isSubmenu && (
+          <Button
+            variant="secondaryText"
+            size="sm"
+            square
+            className={css({ marginRight: '0.5rem', marginLeft: '1rem' })}
+            aria-label={backButtonLabel}
+            onPress={onBack}
+          >
+            <RiArrowLeftLine size={20} aria-hidden="true" />
+          </Button>
+        )}
+        <Heading
+          slot="title"
+          level={1}
+          className={text({ variant: 'h2' })}
+          style={{
+            paddingLeft: isSubmenu ? 0 : '1.5rem',
+            paddingTop: '1rem',
+            display: isClosed ? 'none' : 'flex',
+            justifyContent: 'start',
+            alignItems: 'center',
+          }}
+        >
+          {title}
+        </Heading>
+      </HStack>
+      <Div
+        position="absolute"
+        top="5"
+        right="5"
+        style={{
+          display: isClosed ? 'none' : undefined,
+        }}
+      >
+        <Button
+          invisible
+          variant="tertiaryText"
+          size="xs"
+          onPress={onClose}
+          aria-label={closeButtonTooltip}
+          tooltip={closeButtonTooltip}
+        >
+          <RiCloseLine />
+        </Button>
+      </Div>
+      {children}
+    </aside>
+  )
+)
+
+StyledSidePanel.displayName = 'StyledSidePanel'
+
+type PanelProps = {
+  isOpen: boolean
+  children: React.ReactNode
+  keepAlive?: boolean
+}
+
+const Panel = ({ isOpen, keepAlive = false, children }: PanelProps) => (
+  <div
+    style={{
+      display: isOpen ? 'inherit' : 'none',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      flexGrow: 1,
+    }}
+  >
+    {keepAlive || isOpen ? children : null}
+  </div>
+)
+export const SidePanel = () => {
+  const {
+    activePanelId,
+    isParticipantsOpen,
+    isEffectsOpen,
+    isChatOpen,
+    isSidePanelOpen,
+    isToolsOpen,
+    isAdminOpen,
+    isInfoOpen,
+    isSubPanelOpen,
+    activeSubPanelId,
+  } = useSidePanel()
+  const { t } = useTranslation('rooms', { keyPrefix: 'sidePanel' })
+  const title = t(`heading.${activeSubPanelId || activePanelId}`)
+
+  const { isOpen: isReactionToolbarOpen } = useReactionsToolbar()
+
+  const asideRef = useRef<HTMLElement>(null)
+
+  const focusAside = useCallback(() => {
+    requestAnimationFrame(() => {
+      asideRef.current?.focus({ preventScroll: true })
+    })
+  }, [])
+
+  const handlePanelOpened = useCallback(() => {
+    if (activePanelId === PanelId.CHAT) return
+    focusAside()
+  }, [activePanelId, focusAside])
+
+  useRestoreFocus(isSidePanelOpen, {
+    onOpened: handlePanelOpened,
+    preventScroll: true,
+    activeKey: activePanelId,
+  })
+
+  useEscapeToClose(isSidePanelOpen, asideRef, closeSidePanel)
+
+  return (
+    <StyledSidePanel
+      ref={asideRef}
+      title={title}
+      ariaLabel={t('ariaLabel', { title })}
+      onClose={closeSidePanel}
+      closeButtonTooltip={t('closeButton', {
+        content: t(`content.${activeSubPanelId || activePanelId}`),
+      })}
+      escapeHint={t('escapeHint')}
+      isClosed={!isSidePanelOpen}
+      isSubmenu={isSubPanelOpen}
+      isReactionToolbarOpen={isReactionToolbarOpen}
+      backButtonLabel={t('backToTools')}
+      onBack={() => (layoutStore.activeSubPanelId = null)}
+    >
+      <Panel isOpen={isParticipantsOpen}>
+        <ParticipantsList />
+      </Panel>
+      <Panel isOpen={isEffectsOpen}>
+        <Effects />
+      </Panel>
+      <Panel isOpen={isChatOpen}>
+        <Chat />
+      </Panel>
+      <Panel isOpen={isToolsOpen} keepAlive={true}>
+        <Tools />
+      </Panel>
+      <Panel isOpen={isAdminOpen}>
+        <Admin />
+      </Panel>
+      <Panel isOpen={isInfoOpen}>
+        <Info />
+      </Panel>
+    </StyledSidePanel>
+  )
+}

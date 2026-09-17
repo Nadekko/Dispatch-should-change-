@@ -1,0 +1,75 @@
+{
+  "title": "Enregistrement audio",
+  "newRecording": "Nouvel enregistrement",
+  "newRecordingAriaLabel": "Démarrer un nouvel enregistrement",
+  "transcriptionLanguage": "Langue :",
+  "transcriptionLanguageAriaLabel": "Sélectionner la langue de transcription",
+  "consentWarning": "L'enregistrement nécessite le consentement des participants.",
+  "startRecording": "Démarrer l'enregistrement",
+  "pauseRecording": "Pause",
+  "resumeRecording": "Reprendre",
+  "playRecordedAudio": "Lire l'audio enregistré",
+  "pauseRecordedAudio": "Mettre en pause l'audio enregistré",
+  "stopRecording": "Arrêter",
+  "discardRecording": "Supprimer",
+  "uploadCta": "Transférer",
+  "retryUpload": "Réessayer le transfert sur nos serveurs",
+  "recordingPrefix": "Enregistrement",
+  "preventGoBackAlert": "Vous êtes sur le point de quitter la page d'enregistrement. Votre enregistrement sera perdu si vous le faites. Veuillez le terminer correctement !",
+  "mobileAlert": {
+    "title": "L'enregistrement peut s'arrêter sans prévenir ou être inutilisable",
+    "description": "Sur la version web mobile, l'enregistrement peut s'interrompre ou échouer sans avertissement, notamment si vous verrouillez votre téléphone ou changez d'onglet ou d'application. Dans certains cas, l'enregistrement obtenu peut être incomplet ou inutilisable. Pour un enregistrement fiable, nous vous recommandons vivement d'utiliser l'application mobile, qui continue d'enregistrer même lorsque l'écran est verrouillé.",
+    "downloadApp": "Télécharger l'application",
+    "continueAnyways": "Continuer dans le navigateur"
+  },
+  "source": {
+    "ariaLabel": "Sélectionner la source d'entrée",
+    "fallbackLabel": "Microphone {{index}}",
+    "noInputs": "Aucune source micro disponible.",
+    "signalLevelAriaLabel": "Niveau du signal micro",
+    "noSoundDetected": "Aucun son détecté !",
+    "lowSound": "Son très faible !",
+    "soundOk": "Le niveau du son est bon."
+  },
+  "status": {
+    "readyToRecord": "Prêt à enregistrer",
+    "requestingPermission": "En attente de l'autorisation du micro",
+    "recordingInProgress": "Enregistrement en cours",
+    "recordingPaused": "Enregistrement en pause",
+    "uploadFailed": "Transfert interrompu"
+  },
+  "uploadRecovery": {
+    "title": "Votre enregistrement est toujours disponible",
+    "description": "Le transfert vers nos serveurs a échoué. Réessayez une fois maintenant. Si cela échoue encore, le fichier audio sera téléchargé automatiquement pour que vous puissiez le transférer plus tard."
+  },
+  "recovery": {
+    "title": "Enregistrement récupérable détecté",
+    "description": "Une session d'enregistrement précédente est toujours stockée localement. Vous pouvez la transférer maintenant ou la supprimer."
+  },
+  "confirmStop": {
+    "title": "Arrêter l'enregistrement ?",
+    "description": "Votre enregistrement sera arrêté et transféré.",
+    "cancel": "Continuer l'enregistrement",
+    "confirm": "Arrêter l'enregistrement"
+  },
+  "warnings": {
+    "stayOnPage": "Vous ne pouvez pas quitter ou recharger cette page pendant l'enregistrement.",
+    "keepPhoneAwake": "Si vous enregistrez sur un téléphone, gardez l'écran allumé pour limiter les interruptions."
+  },
+  "alerts": {
+    "uploadFailedDownloaded": "L'enregistrement n'a pas pu être transféré sur nos serveurs après un nouvel essai. Le fichier « {{fileName}} » a été téléchargé et enregistré sur votre ordinateur. Vous pouvez le transférer plus tard ou prévenir l'équipe support.",
+    "lowStorage": "Enregistrement arrêté : moins de 20 Mo d'espace de stockage disponible.",
+    "storageQuotaExceeded": "Enregistrement arrêté : le quota de stockage local est dépassé.",
+    "unkownError": "Enregistrement arrêté : une erreur inconnue est survenue."
+  },
+  "errors": {
+    "storageInitializationFailed": "Impossible d'initialiser le stockage local de l'enregistrement.",
+    "microphonePermissionDenied": "L'accès au microphone est refusé. Autorisez le microphone dans les paramètres de votre navigateur.",
+    "microphonePermissionRequired": "L'accès au microphone est requis pour démarrer l'enregistrement.",
+    "persistentStoragePermissionDenied": "L'accès au stockage persistant est refusé. Autorisez le stockage persistant dans les paramètres de votre navigateur.",
+    "persistentStoragePermissionRequired": "L'accès au stockage persistant est requis pour démarrer l'enregistrement.",
+    "stopRecordingFailed": "Échec de l'arrêt propre de l'enregistrement.",
+    "recordingFailed": "L'enregistrement a échoué. Vérifiez les permissions du micro puis réessayez.",
+    "uploadFailed": "Le transfert sur nos serveurs a échoué. Veuillez réessayer une fois."
+  }
+}

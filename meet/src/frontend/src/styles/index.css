@@ -1,0 +1,105 @@
+@import './livekit.css';
+@layer reset, base, tokens, recipes, utilities;
+html,
+body,
+#root {
+  height: 100%;
+}
+
+:root {
+  --avatar-cap-height: 0.7;
+}
+
+html.font-lexend {
+  --fonts-sans: 'Lexend Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+html.font-atkinson-hyperlegible {
+  --fonts-sans:
+    'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+html.font-opendyslexic {
+  --fonts-sans: OpenDyslexic, ui-sans-serif, system-ui, sans-serif;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* LiveKit ConnectionCheck appends a temporary <video> to body during publishVideo.
+   Keep it decodable (not display:none) but invisible. */
+body.connection-test-hide-livekit-video > video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+* {
+  outline: 2px solid transparent;
+}
+
+main#main-content :is(h1, h2, h3)[tabindex='-1']:focus {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 2px;
+}
+
+[data-rac][data-focus-visible]:not(label, .react-aria-Select),
+:is(a, button, input[type='text'], select, textarea):not(
+    [data-rac]
+  ):focus-visible {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+body:has(.lk-video-conference) #crisp-chatbox-button {
+  display: none !important;
+}
+
+body:has(.lk-video-conference) #crisp-chatbox > * > div[role='button'] {
+  display: none !important;
+}
+
+html:has(.lk-video-conference) {
+  scrollbar-gutter: auto !important;
+}
+
+@keyframes slide-full {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.hoverGroup .hoverGroupChild {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hoverGroup:hover .hoverGroupChild,
+.hoverGroup:focus-within .hoverGroupChild {
+  opacity: 1;
+  pointer-events: auto;
+}

@@ -1,0 +1,63 @@
+{
+  "createMeeting": "Maak een vergadering",
+  "heading": "Eenvoudige en veilige videoconferenties",
+  "intro": "Communiceer en werk gemakkelijk, zonder uw soevereiniteit in gevaar te brengen",
+  "joinInputError": "Gebruik een vergaderlink of code. Voorbeelden:",
+  "joinInputExample": "Een 10-lettercode zoals : abc-defg-hij",
+  "joinInputLabel": "Vergadering met link",
+  "joinInputSubmit": "Deelnemen aan de vergadering",
+  "joinMeeting": "Deelnemen aan een vergadering",
+  "joinMeetingTipContent": "U kunt deelnemen aan een vergadering door de volledige link in de adresbalk van de browser te plakken.",
+  "joinMeetingTipHeading": "Wist u dat?",
+  "loginToCreateMeeting": "Log in om een vergadering te maken",
+  "moreLinkLabel": "Meer informatie over {{appTitle}} - nieuw tabblad",
+  "moreLink": "Meer informatie",
+  "moreAbout": "over {{appTitle}}",
+  "connectionTestLink": "Test je configuratie",
+  "createMenu": {
+    "laterOption": "Maak een vergadering voor een latere datum",
+    "instantOption": "Begin direct een vergadering"
+  },
+  "laterMeetingDialog": {
+    "heading": "Uw verbindingsgegevens",
+    "description": "Deel deze informatie met de genodigden. Zij kunnen deelnemen aan de vergadering zonder zich aan te melden. Deze vergadering is permanent en kan hergebruikt worden.",
+    "permissions": "Mensen met deze link hebben uw toestemming niet nodig om deel te nemen aan deze vergadering.",
+    "copy": "Informatie kopiëren",
+    "copied": "Informatie gekopieerd",
+    "copyUrl": "Kopieer de vergaderlink",
+    "phone": {
+      "call": "Bel:",
+      "pinCode": "Code:"
+    }
+  },
+  "introSlider": {
+    "previous": {
+      "label": "Vorige dia",
+      "labelWithPosition": "Vorige dia ({{current}} van {{total}})",
+      "tooltip": "Vorige dia"
+    },
+    "next": {
+      "label": "Volgende dia",
+      "labelWithPosition": "Volgende dia ({{current}} van {{total}})",
+      "tooltip": "Volgende dia"
+    },
+    "beta": {
+      "text": "Word lid van de bèta",
+      "tooltip": "Vul het formulier in"
+    },
+    "slide1": {
+      "title": "Stap over op eenvoud. Probeer ons nu!",
+      "body": "Ontdek een intuïtieve en toegankelijke oplossing, ontworpen voor alle openbare partijen, hun partners en nog veel meer."
+    },
+    "slide2": {
+      "title": "Houdt groepsgesprekken zonder limieten",
+      "body": "Vergaderingen van onbeperkte lengte, met soepele en hoogwaardige communicatie, ongeacht de groepsgrootte."
+    },
+    "slide3": {
+      "title": "Transformeer uw vergaderingen met AI",
+      "body": "Krijg nauwkeurige en bruikbare transcripties om uw productiviteit te stimuleren. Deze mogelijkheid is in bèta, probeer het nu!"
+    },
+    "carouselLabel": "Introductie-diavoorstelling",
+    "slidePosition": "Dia {{current}} van {{total}}"
+  }
+}

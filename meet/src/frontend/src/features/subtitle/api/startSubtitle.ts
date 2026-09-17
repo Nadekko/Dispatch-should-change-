@@ -1,0 +1,30 @@
+import { useMutation, type UseMutationOptions } from '@tanstack/react-query'
+import { fetchApi } from '@/api/fetchApi'
+import type { ApiError } from '@/api/ApiError'
+import type { ApiRoom } from '@/features/rooms/api/ApiRoom'
+
+export interface StartSubtitleParams {
+  id: string
+  token: string
+}
+
+const startSubtitle = ({
+  id,
+  token,
+}: StartSubtitleParams): Promise<ApiRoom> => {
+  return fetchApi(`rooms/${id}/start-subtitle/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}
+
+export function useStartSubtitle(
+  options?: UseMutationOptions<ApiRoom, ApiError, StartSubtitleParams>
+) {
+  return useMutation<ApiRoom, ApiError, StartSubtitleParams>({
+    mutationFn: startSubtitle,
+    ...options,
+  })
+}

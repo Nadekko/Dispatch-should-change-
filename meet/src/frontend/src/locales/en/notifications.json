@@ -1,0 +1,66 @@
+{
+  "defaultName": "A contributor",
+  "joined": {
+    "description": "{{name}} has joined the room"
+  },
+  "raised": {
+    "description": "{{name}} has raised their hand.",
+    "cta": "Open waiting list"
+  },
+  "muted": "{{name}} has muted your microphone. No participant can hear you.",
+  "openChat": "Open chat",
+  "chatMessageReceived": "{{name}} says: {{message}}",
+  "lowerHand": {
+    "auto": "It seems you have started speaking, so your hand will be lowered.",
+    "dismiss": "Keep hand raised"
+  },
+  "autoMuteLargeRoom": {
+    "auto": "You have joined a large meeting. Your microphone has been automatically muted.",
+    "dismiss": "Unmute"
+  },
+  "reaction": {
+    "description": "{{name}} reacted with {{emoji}}"
+  },
+  "permissionsRemoved": {
+    "camera": "The host has disabled video for all participants.",
+    "microphone": "The host has disabled the microphone for all participants.",
+    "screen_share": "The host has disabled screen sharing for all participants."
+  },
+  "waitingParticipants": {
+    "one": "One person wants to join this call.",
+    "several": "Several people want to join this call.",
+    "open": "Open",
+    "accept": "Accept"
+  },
+  "transcript": {
+    "started": "{{name}} started the meeting transcription.",
+    "stopped": "{{name}} stopped the meeting transcription.",
+    "limitReached": "The transcription has exceeded the maximum allowed duration and will be automatically saved.",
+    "requested": "{{name}} wants to start the meeting transcription."
+  },
+  "screenRecording": {
+    "started": "{{name}} started the meeting recording.",
+    "stopped": "{{name}} stopped the meeting recording.",
+    "limitReached": "The recording has exceeded the maximum allowed duration and will be automatically saved.",
+    "requested": "{{name}} wants to start the meeting recording."
+  },
+  "recordingSave": {
+    "transcript": {
+      "message": "Your recording is being saved! We’ll send the transcript to <strong>{{email}}</strong> as soon as it’s ready.",
+      "default": "Your recording is being saved! We’ll send the transcript to your email as soon as it’s ready."
+    },
+    "screenRecording": {
+      "message": "Your recording is being saved! We’ll send a notification to <strong>{{email}}</strong> as soon as it’s ready.",
+      "default": "Your recording is being saved! We’ll send a notification to your email as soon as it’s ready."
+    }
+  },
+  "roleChanged": {
+    "body": "Your role has changed. You are now {{role}}.",
+    "roles": {
+      "owner": "Host",
+      "administrator": "Co-host",
+      "member": "Member"
+    }
+  },
+  "openMenu": "Open menu"
+}

@@ -1,0 +1,212 @@
+{
+  "title": "Assistant Transcripts (beta)",
+  "newRecording": "Nouvel enregistrement",
+  "myRecordings": "Mes enregistrements",
+  "mySavedRecordings": "Mes enregistrements transférés",
+  "errorFetching": "Une erreur s'est produite lors de la récupération des enregistrements.",
+  "noRecordings": "Vous n'avez pas encore d'enregistrements.",
+  "noRecordingsTrash": "Vous n'avez pas encore d'enregistrements dans la corbeille.",
+  "notFound": "Enregistrement introuvable.",
+  "deleted": "Supprimé",
+  "subtitle": "Enregistrez vos réunions en personne et accédez à vos transcriptions.",
+  "logoAlt": "Logo Transcripts",
+  "uploadButtonAriaLabel": "Importer des enregistrements",
+  "uploadInputAriaLabel": "Importer des enregistrements audio",
+  "metadata": {
+    "ariaLabel": "Métadonnées de l'enregistrement",
+    "audioKeptUntil": "L'enregistrement audio est conservé jusqu'au {{value, formatDate}}",
+    "fileKeptUntil": "Ce transcript est conservé jusqu'au {{value, formatDate}}",
+    "dataPolicyTooltip": "Vos enregistrements sont conservés sur nos serveurs pendant {{originalDataKeptFor}} jours. Les transcriptions (textes) sont conservées pendant {{transcriptDataKeptFor}} jours. Cette politique s'applique aux nouveaux enregistrements et peut différer pour les enregistrements précédents."
+  },
+  "audioExtraction": {
+    "pending": "Préparation de l'audio",
+    "extracting": "Conversion de l'audio",
+    "transcriptPending": "Nous préparons d'abord votre audio avant de lancer la transcription. Cela prend généralement quelques secondes à quelques minutes.",
+    "failed": "Fichier audio invalide",
+    "failedDescription": "Nous n'avons pas pu extraire l'audio du fichier, il est peut-être corrompu.",
+    "failedAriaLabel": "Échec de l'extraction audio"
+  },
+  "createInDocsModal": {
+    "title": "Création du document Docs",
+    "description": "Veuillez patienter pendant l'ajout de votre transcription dans Docs."
+  },
+  "uploadTooltip": {
+    "title": "Importer des fichiers",
+    "supportedFormats": "Formats pris en charge : {{formats, list}}",
+    "noSupportedFormats": "aucun",
+    "maxFileSize": "Taille maximale par fichier : {{maxSize}}",
+    "maxDuration": "Durée maximale par fichier : {{duration, formatDuration}}"
+  },
+  "recovery": {
+    "blockNewRecordingAlert": "Un enregistrement précédent n'a pas été transféré et est encore stocké localement. Veuillez le transférer ou le supprimer avant de démarrer un nouvel enregistrement."
+  },
+  "localQueue": {
+    "title": "Enregistrements locaux en attente de transfert",
+    "description": "Ces enregistrements sont encore stockés dans ce navigateur.",
+    "recordingLabel": "Enregistrement {{value, formatDateTimeStatic}}",
+    "tooltip": {
+      "notUploaded": "Enregistrement non transféré",
+      "failedToUpload": "Échec du transfert, veuillez réessayer ou télécharger l'enregistrement pour un transfert ultérieur.",
+      "interrupted": "L'enregistrement a été interrompu brutalement. Vous pouvez réessayer de transférer la partie qui a été sauvegardée."
+    },
+    "uploadFailed": "Le transfert a échoué.",
+    "confirmDiscard": "Supprimer cet enregistrement local ? (attention action définitive !)",
+    "actions": {
+      "upload": "Transférer",
+      "retry": "Réessayer",
+      "retryAriaLabel": "Réessayer le transfert de cet enregistrement",
+      "download": "Télécharger",
+      "discard": "Supprimer"
+    }
+  },
+  "list": {
+    "title": "Mes enregistrements",
+    "titleTrash": "Corbeille",
+    "trashInfo": "Les enregistrements sont supprimés définitivement après 30 jours",
+    "ariaLabelTable": "Liste des enregistrements",
+    "openRecording": "Ouvrir l'enregistrement {{title}}",
+    "deleteAriaLabel": "Supprimer l'enregistrement {{title}}",
+    "paginationAriaLabel": "Pagination des enregistrements",
+    "paginationPreviousAriaLabel": "Aller à la page précédente",
+    "paginationNextAriaLabel": "Aller à la page suivante",
+    "loadMore": "Afficher plus",
+    "loadingMore": "Chargement..."
+  },
+  "actions": {
+    "cta": "Actions",
+    "moreOptionsAriaLabel": "Plus d'options pour {{title}}",
+    "delete": {
+      "label": "Supprimer",
+      "success": "Enregistrement supprimé",
+      "error": "Échec de la suppression de l'enregistrement"
+    },
+    "deleteModal": {
+      "title": "Supprimer l'enregistrement",
+      "description": "Êtes-vous sûr de vouloir supprimer cet enregistrement et son stranscript ? Le transcript exporté dans Docs restera disponible dans Docs."
+    },
+    "restore": {
+      "label": "Restaurer",
+      "success": "Enregistrement restauré",
+      "error": "Échec de la restauration de l'enregistrement"
+    },
+    "rename": {
+      "label": "Renommer",
+      "success": "Enregistrement renommé",
+      "error": "Échec du renommage de l'enregistrement"
+    },
+    "retry": {
+      "label": "Régénérer",
+      "success": "Génération relancée",
+      "error": "Échec de la relance de la génération",
+      "disabledPendingLabel": "Régénérer (en cours)"
+    },
+    "changeLanguage": {
+      "label": "Changer de langue",
+      "subLabel": "Retraite l'enregistrement",
+      "success": "Nouvelle transcription demandée avec succès",
+      "error": "Échec lors de la modification de la langue de la transcription"
+    },
+    "export": {
+      "label": "Exporter",
+      "success": "Transcription exportée",
+      "error": "Échec de l'export de la transcription"
+    },
+    "deletePermanently": {
+      "label": "Supprimer définitivement",
+      "success": "Enregistrement supprimé définitivement",
+      "error": "Échec de la suppression définitive de l'enregistrement"
+    },
+    "renameModal": {
+      "title": "Renommer l'enregistrement",
+      "label": "Nouveau nom",
+      "placeholder": "Entrez un nouveau nom"
+    },
+    "retryModal": {
+      "title": "Regénérer un transcript",
+      "description": "Choisissez une langue pour cette nouvelle tentative de transcription.",
+      "mainAction": "Réessayer"
+    },
+    "changeLanguageModal": {
+      "title": "Changer la langue",
+      "description": "Choisissez la langue pour cette nouvelle transcription.",
+      "selectLangLabel": "Langue",
+      "languageOptions": {
+        "en": "Anglais",
+        "fr": "Français",
+        "de": "Allemand",
+        "nl": "Néerlandais"
+      },
+      "extra": "Le traitement prendra quelques minutes et remplacera le transcript actuel.",
+      "mainAction": "Transcrire"
+    },
+    "exportModal": {
+      "title": "Exporter la transcription",
+      "description": "Choisissez un format.",
+      "formatLabel": "Format",
+      "submit": "Exporter",
+      "formatOptions": {
+        "markdown": "Markdown",
+        "srt": "Sous-titres (srt) - Beta",
+        "json": "Json brut"
+      }
+    }
+  },
+  "transcript": {
+    "title": "Transcription",
+    "segmentsAriaLabel": "Segments de transcription",
+    "segmentSeekAriaLabel": "Aller à {{timestamp}} ({{speaker}})",
+    "noSpeaker": "Intervenant inconnu",
+    "openInDocsCta": "Ouvrir dans Docs",
+    "createInDocsError": "Impossible de créer le document Docs pour le moment. Veuillez réessayer.",
+    "openInDocsError": "Impossible d'ouvrir le document Docs pour le moment. Veuillez réessayer.",
+    "copySuccess": "Transcript copié dans le presse-papiers",
+    "copyError": "Échec de la copie du transcript dans le presse-papiers",
+    "status": {
+      "pending": "La transcription est en cours de génération",
+      "failed": "Échec de la génération de la transcription",
+      "empty": "La transcription est vide",
+      "processing": "En traitement ∼ {{value}}",
+      "processingLong": "La transcription est en cours de génération et sera disponible dans environ <1>{{value}}</1>."
+    },
+    "statusPreview": {
+      "pending": "Transcription en cours",
+      "failed": "Erreur de transcription",
+      "success": "Transcrit avec succès"
+    },
+    "speaker": "Participant"
+  },
+  "summary": {
+    "title": "Résumé (beta)",
+    "status": {
+      "pending": "Résumé en cours de génération.",
+      "failed": "Échec de la génération de la résumé.",
+      "empty": "Le résumé est vide.",
+      "notStarted": "Le résumé n'est pas encore disponible."
+    },
+    "statusPreview": {
+      "pending": "Résumé en cours",
+      "failed": "Erreur de résumé",
+      "success": "Résumé avec succès"
+    }
+  },
+  "player": {
+    "player": "Lecteur",
+    "progressControl": "Contrôle de progression audio",
+    "volumeControl": "Contrôle du volume",
+    "play": "Lecture",
+    "pause": "Pause",
+    "rewind": "Rembobiner",
+    "forward": "Avancer",
+    "speed15": "Définir la vitesse de lecture à 1,5x (actuellement 1x)",
+    "speed2": "Définir la vitesse de lecture à 2x (actuellement 1,5x)",
+    "speed1": "Définir la vitesse de lecture à 1x (actuellement 2x)",
+
+    "download": "Télécharger",
+    "previous": "Précédent",
+    "next": "Passer",
+    "loop": "Désactiver la lecture en boucle",
+    "loopOff": "Activer la lecture en boucle",
+    "volume": "Couper le son",
+    "volumeMute": "Activer le son"
+  }
+}

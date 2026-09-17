@@ -1,0 +1,11 @@
+{
+  "name": "sdk",
+  "version": "1.31.0",
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "workspaces": [
+    "./library",
+    "./consumer"
+  ]
+}

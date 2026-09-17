@@ -1,0 +1,53 @@
+import { useToast } from 'react-aria'
+import { useMemo, useRef } from 'react'
+
+import type { ToastProps } from './Toast'
+import { StyledToastContainer } from './StyledToastContainer'
+import { HStack } from '@/styled-system/jsx'
+import { useTranslation } from 'react-i18next'
+import { NotificationType } from '../NotificationType'
+
+export function ToastAnyRecording({ state, ...props }: Readonly<ToastProps>) {
+  const { t } = useTranslation('notifications')
+  const ref = useRef(null)
+  const { toastProps, contentProps } = useToast(props, state, ref)
+  const participant = props.toast.content.participant
+  const type = props.toast.content.type
+
+  const key = useMemo(() => {
+    switch (type) {
+      case NotificationType.TranscriptionStarted:
+        return 'transcript.started'
+      case NotificationType.TranscriptionStopped:
+        return 'transcript.stopped'
+      case NotificationType.TranscriptionLimitReached:
+        return 'transcript.limitReached'
+      case NotificationType.ScreenRecordingStarted:
+        return 'screenRecording.started'
+      case NotificationType.ScreenRecordingStopped:
+        return 'screenRecording.stopped'
+      case NotificationType.ScreenRecordingLimitReached:
+        return 'screenRecording.limitReached'
+      default:
+        return
+    }
+  }, [type])
+
+  if (!key) return
+
+  return (
+    <StyledToastContainer {...toastProps} ref={ref}>
+      <HStack
+        justify="center"
+        alignItems="center"
+        {...contentProps}
+        padding={14}
+        gap={0}
+      >
+        {t(key, {
+          name: participant?.name,
+        })}
+      </HStack>
+    </StyledToastContainer>
+  )
+}

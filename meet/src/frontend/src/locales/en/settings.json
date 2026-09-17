@@ -1,0 +1,190 @@
+{
+  "account": {
+    "currentlyLoggedAs": "You are currently logged in as <0>{{user}}</0>",
+    "heading": "Account",
+    "youAreNotLoggedIn": "You are not logged in.",
+    "nameLabel": "Your Name",
+    "authentication": "Authentication",
+    "nameError": "Your name cannot be empty"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "idleDisconnectModal": {
+      "label": "Leave calls with no participants",
+      "description": "Automatically leaves a call after a few minutes if no other participant joins"
+    },
+    "autoMuteLargeRoom": {
+      "label": "Automatically mute my microphone",
+      "description": "Automatically mute your microphone when joining a large meeting."
+    }
+  },
+  "audio": {
+    "microphone": {
+      "heading": "Microphone",
+      "label": "Select your audio input",
+      "disabled": "Microphone disabled"
+    },
+    "noiseReduction": {
+      "label": "Advanced voice optimization",
+      "heading": "Audio filters",
+      "ariaLabel": {
+        "enable": "Enable noise reduction",
+        "disable": "Disable noise reduction"
+      }
+    },
+    "speakers": {
+      "heading": "Speakers",
+      "label": "Select your audio output",
+      "test": "Test",
+      "ongoingTest": "Testing sound…",
+      "safariWarning": "Speaker selection is not available yet on Safari due to browser limitations."
+    },
+    "permissionsRequired": "Permissions required"
+  },
+  "video": {
+    "camera": {
+      "heading": "Camera",
+      "label": "Select your video input",
+      "disabled": "Camera disabled",
+      "previewAriaLabel": {
+        "enabled": "Video preview enabled",
+        "disabled": "Video preview disabled"
+      }
+    },
+    "resolution": {
+      "heading": "Resolution",
+      "publish": {
+        "label": "Select your sending resolution (max.)",
+        "items": {
+          "veryHigh": "Very high definition",
+          "high": "High definition",
+          "medium": "Standard definition",
+          "low": "Low definition"
+        }
+      },
+      "subscribe": {
+        "label": "Select your reception resolution (max.)",
+        "items": {
+          "high": "High definition (automatic)",
+          "medium": "Standard definition",
+          "low": "Low definition"
+        }
+      }
+    },
+    "permissionsRequired": "Permissions required"
+  },
+  "transcription": {
+    "heading": "Transcription",
+    "language": {
+      "label": "Meeting language",
+      "options": {
+        "french": "French (fr)",
+        "english": "English (en)",
+        "dutch": "Dutch (nl)",
+        "german": "German (de)",
+        "auto": "Automatic"
+      }
+    }
+  },
+  "notifications": {
+    "heading": "Sound notifications",
+    "label": "sound notifications for",
+    "actions": {
+      "disable": "Disable",
+      "enable": "Enable"
+    },
+    "items": {
+      "participantJoined": {
+        "label": "Participant joined"
+      },
+      "handRaised": {
+        "label": "Hand raised"
+      },
+      "messageReceived": {
+        "label": "Message received"
+      }
+    }
+  },
+  "shortcuts": {
+    "listLabel": "Keyboard shortcuts",
+    "columnAction": "Action",
+    "columnShortcut": "Shortcut"
+  },
+  "dialog": {
+    "heading": "Settings"
+  },
+  "language": {
+    "heading": "Language",
+    "label": "Language"
+  },
+  "settingsButtonLabel": "Settings",
+  "accessibility": {
+    "announceReactions": {
+      "label": "Announce reactions aloud"
+    },
+    "font": {
+      "label": "Display font",
+      "description": "Customize the font used in the interface to improve your reading comfort.",
+      "options": {
+        "default": "Default",
+        "lexend": "Lexend (improved readability)",
+        "atkinson-hyperlegible": "Atkinson Hyperlegible (low vision)",
+        "opendyslexic": "OpenDyslexic (dyslexia)"
+      }
+    },
+    "captions": {
+      "heading": "Captions",
+      "textSize": {
+        "label": "Caption text size",
+        "options": {
+          "small": "Small",
+          "medium": "Medium",
+          "large": "Large"
+        }
+      },
+      "fontColor": {
+        "label": "Font color",
+        "options": {
+          "default": "Default",
+          "white": "White",
+          "black": "Black",
+          "blue": "Blue",
+          "green": "Green",
+          "red": "Red",
+          "yellow": "Yellow",
+          "cyan": "Cyan",
+          "magenta": "Magenta"
+        }
+      },
+      "backgroundColor": {
+        "label": "Background color",
+        "options": {
+          "default": "Default",
+          "white": "White",
+          "black": "Black",
+          "blue": "Blue",
+          "green": "Green",
+          "red": "Red",
+          "yellow": "Yellow",
+          "cyan": "Cyan",
+          "magenta": "Magenta"
+        }
+      }
+    }
+  },
+  "tabs": {
+    "account": "Profile",
+    "audio": "Audio",
+    "video": "Video",
+    "general": "General",
+    "notifications": "Notifications",
+    "accessibility": "Accessibility",
+    "transcription": "Transcription",
+    "shortcuts": "Shortcuts",
+    "rooms": "Rooms"
+  },
+  "roomDefaults": {
+    "heading": "Default room settings",
+    "description": "Choose the settings applied by default to the new rooms you create. You can still change them for each meeting from the host settings."
+  }
+}
